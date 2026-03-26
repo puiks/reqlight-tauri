@@ -16,8 +16,7 @@ pub async fn execute(
     timeout_secs: Option<u64>,
 ) -> Result<ResponseRecord, String> {
     // Build URL with query params
-    let mut parsed_url =
-        reqwest::Url::parse(url).map_err(|e| format!("Invalid URL: {e}"))?;
+    let mut parsed_url = reqwest::Url::parse(url).map_err(|e| format!("Invalid URL: {e}"))?;
 
     {
         let enabled_params: Vec<_> = query_params
@@ -102,7 +101,10 @@ pub async fn execute(
 
     // Execute with timing
     let start = Instant::now();
-    let response = request.send().await.map_err(|e| format!("Request failed: {e}"))?;
+    let response = request
+        .send()
+        .await
+        .map_err(|e| format!("Request failed: {e}"))?;
     let elapsed = start.elapsed().as_secs_f64() * 1000.0;
 
     let status_code = response.status().as_u16() as i32;

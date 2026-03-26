@@ -1,6 +1,4 @@
-use crate::models::{
-    HttpMethod, KeyValuePair, RequestBody, RequestEnvironment, ResponseRecord,
-};
+use crate::models::{HttpMethod, KeyValuePair, RequestBody, RequestEnvironment, ResponseRecord};
 use crate::services::{http_client, interpolator};
 
 #[tauri::command]
@@ -14,18 +12,11 @@ pub async fn send_request(
     environment: Option<RequestEnvironment>,
 ) -> Result<ResponseRecord, String> {
     // Interpolate variables if environment is provided
-    let (final_url, final_headers, final_params, final_body) =
-        if let Some(ref env) = environment {
-            interpolator::interpolate_request(
-                &url,
-                &headers,
-                &query_params,
-                &body,
-                &env.variables,
-            )
-        } else {
-            (url, headers, query_params, body)
-        };
+    let (final_url, final_headers, final_params, final_body) = if let Some(ref env) = environment {
+        interpolator::interpolate_request(&url, &headers, &query_params, &body, &env.variables)
+    } else {
+        (url, headers, query_params, body)
+    };
 
     http_client::execute(
         &method,

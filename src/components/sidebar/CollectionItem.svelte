@@ -13,6 +13,8 @@
   } = $props();
 
   let expanded = $state(true);
+  let dragOverIndex = $state<number | null>(null);
+  let dragFromIndex = $state<number | null>(null);
 
   function toggleExpand() {
     expanded = !expanded;
@@ -22,6 +24,34 @@
     appStore.selectRequest(collection.id, requestId);
     const request = collection.requests.find((r) => r.id === requestId);
     if (request) editorStore.loadFrom(request);
+  }
+
+  function handleDragStart(index: number, e: DragEvent) {
+    dragFromIndex = index;
+    if (e.dataTransfer) {
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", String(index));
+    }
+  }
+
+  function handleDragOver(index: number, e: DragEvent) {
+    e.preventDefault();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+    dragOverIndex = index;
+  }
+
+  function handleDrop(index: number, e: DragEvent) {
+    e.preventDefault();
+    if (dragFromIndex !== null && dragFromIndex !== index) {
+      appStore.reorderRequest(collection.id, dragFromIndex, index);
+    }
+    dragFromIndex = null;
+    dragOverIndex = null;
+  }
+
+  function handleDragEnd() {
+    dragFromIndex = null;
+    dragOverIndex = null;
   }
 </script>
 
@@ -35,12 +65,24 @@
   </div>
   {#if expanded}
     <div class="requests">
-      {#each collection.requests as request (request.id)}
-        <RequestRow
-          {request}
-          isSelected={appStore.selectedRequestId === request.id}
-          onclick={() => selectRequest(request.id)}
-        />
+      {#each collection.requests as request, index (request.id)}
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div
+          class="drag-wrapper"
+          class:drag-over={dragOverIndex === index && dragFromIndex !== index}
+          draggable="true"
+          ondragstart={(e) => handleDragStart(index, e)}
+          ondragover={(e) => handleDragOver(index, e)}
+          ondrop={(e) => handleDrop(index, e)}
+          ondragend={handleDragEnd}
+          ondragleave={() => { if (dragOverIndex === index) dragOverIndex = null; }}
+        >
+          <RequestRow
+            {request}
+            isSelected={appStore.selectedRequestId === request.id}
+            onclick={() => selectRequest(request.id)}
+          />
+        </div>
       {/each}
     </div>
   {/if}
@@ -82,5 +124,12 @@
   }
   .requests {
     padding-left: var(--sp-xs);
+  }
+  .drag-wrapper {
+    border-top: 2px solid transparent;
+    transition: border-color 0.1s;
+  }
+  .drag-wrapper.drag-over {
+    border-top-color: var(--color-info);
   }
 </style>

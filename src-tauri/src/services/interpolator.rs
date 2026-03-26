@@ -107,3 +107,118 @@ pub fn interpolate_request(
 
     (new_url, new_headers, new_params, new_body)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::KeyValuePair;
+    use uuid::Uuid;
+
+    fn make_var(key: &str, value: &str) -> KeyValuePair {
+        KeyValuePair {
+            id: Uuid::new_v4(),
+            key: key.to_string(),
+            value: value.to_string(),
+            is_enabled: true,
+            is_secret: false,
+        }
+    }
+
+    fn make_disabled_var(key: &str, value: &str) -> KeyValuePair {
+        KeyValuePair {
+            id: Uuid::new_v4(),
+            key: key.to_string(),
+            value: value.to_string(),
+            is_enabled: false,
+            is_secret: false,
+        }
+    }
+
+    #[test]
+    fn interpolate_simple_variable() {
+        let vars = vec![make_var("host", "example.com")];
+        assert_eq!(
+            interpolate("https://{{host}}/api", &vars),
+            "https://example.com/api"
+        );
+    }
+
+    #[test]
+    fn interpolate_multiple_variables() {
+        let vars = vec![make_var("host", "example.com"), make_var("version", "v2")];
+        assert_eq!(
+            interpolate("https://{{host}}/{{version}}/users", &vars),
+            "https://example.com/v2/users"
+        );
+    }
+
+    #[test]
+    fn interpolate_unknown_variable_kept_as_is() {
+        let vars = vec![make_var("host", "example.com")];
+        assert_eq!(
+            interpolate("{{host}}/{{unknown}}", &vars),
+            "example.com/{{unknown}}"
+        );
+    }
+
+    #[test]
+    fn interpolate_disabled_variable_ignored() {
+        let vars = vec![make_disabled_var("host", "example.com")];
+        assert_eq!(interpolate("https://{{host}}", &vars), "https://{{host}}");
+    }
+
+    #[test]
+    fn interpolate_no_variables_returns_original() {
+        let vars = vec![make_var("host", "example.com")];
+        assert_eq!(interpolate("https://plain.com", &vars), "https://plain.com");
+    }
+
+    #[test]
+    fn interpolate_empty_string() {
+        let vars = vec![make_var("x", "y")];
+        assert_eq!(interpolate("", &vars), "");
+    }
+
+    #[test]
+    fn interpolate_unclosed_braces() {
+        let vars = vec![make_var("x", "y")];
+        assert_eq!(interpolate("{{x} still here", &vars), "{{x} still here");
+    }
+
+    #[test]
+    fn interpolate_adjacent_variables() {
+        let vars = vec![make_var("a", "hello"), make_var("b", "world")];
+        assert_eq!(interpolate("{{a}}{{b}}", &vars), "helloworld");
+    }
+
+    #[test]
+    fn interpolate_request_replaces_all_parts() {
+        let vars = vec![make_var("host", "api.test"), make_var("token", "abc123")];
+        let headers = vec![KeyValuePair {
+            id: Uuid::new_v4(),
+            key: "Authorization".to_string(),
+            value: "Bearer {{token}}".to_string(),
+            is_enabled: true,
+            is_secret: false,
+        }];
+        let params = vec![KeyValuePair {
+            id: Uuid::new_v4(),
+            key: "q".to_string(),
+            value: "{{host}}".to_string(),
+            is_enabled: true,
+            is_secret: false,
+        }];
+        let body = RequestBody::Json(r#"{"host":"{{host}}"}"#.to_string());
+
+        let (url, new_headers, new_params, new_body) =
+            interpolate_request("https://{{host}}/api", &headers, &params, &body, &vars);
+
+        assert_eq!(url, "https://api.test/api");
+        assert_eq!(new_headers[0].value, "Bearer abc123");
+        assert_eq!(new_params[0].value, "api.test");
+        match new_body {
+            RequestBody::Json(s) => assert_eq!(s, r#"{"host":"api.test"}"#),
+            _ => panic!("Expected Json body"),
+        }
+    }
+}

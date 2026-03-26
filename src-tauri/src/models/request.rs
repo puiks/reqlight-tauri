@@ -23,6 +23,8 @@ fn default_true() -> bool {
 }
 
 impl KeyValuePair {
+    #[cfg(test)]
+    #[allow(dead_code)]
     pub fn new() -> Self {
         Self {
             id: Uuid::new_v4(),
@@ -32,16 +34,13 @@ impl KeyValuePair {
             is_secret: false,
         }
     }
-
-    pub fn is_empty(&self) -> bool {
-        self.key.is_empty() && self.value.is_empty()
-    }
 }
 
 /// HTTP method enum. Serializes as raw string ("GET", "POST", etc.)
 /// to match Swift's `HTTPMethod: String, Codable` with rawValue.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub enum HttpMethod {
+    #[default]
     Get,
     Post,
     Put,
@@ -64,7 +63,9 @@ impl<'de> Deserialize<'de> for HttpMethod {
             "PUT" => Ok(HttpMethod::Put),
             "PATCH" => Ok(HttpMethod::Patch),
             "DELETE" => Ok(HttpMethod::Delete),
-            _ => Err(serde::de::Error::custom(format!("Unknown HTTP method: {s}"))),
+            _ => Err(serde::de::Error::custom(format!(
+                "Unknown HTTP method: {s}"
+            ))),
         }
     }
 }
@@ -81,12 +82,6 @@ impl HttpMethod {
     }
 }
 
-impl Default for HttpMethod {
-    fn default() -> Self {
-        HttpMethod::Get
-    }
-}
-
 /// Request body types.
 ///
 /// Swift auto-synthesized Codable for enums with associated values encodes as:
@@ -96,18 +91,13 @@ impl Default for HttpMethod {
 ///   .rawText("x") → {"rawText": {"_0": "x"}}
 ///
 /// We use a custom serde implementation to match this format.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub enum RequestBody {
+    #[default]
     None,
     Json(String),
     FormData(Vec<KeyValuePair>),
     RawText(String),
-}
-
-impl Default for RequestBody {
-    fn default() -> Self {
-        RequestBody::None
-    }
 }
 
 // Custom Serialize to match Swift's auto-synthesized Codable format
@@ -136,9 +126,9 @@ impl Serialize for RequestBody {
 impl<'de> Deserialize<'de> for RequestBody {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let value = serde_json::Value::deserialize(deserializer)?;
-        let obj = value.as_object().ok_or_else(|| {
-            serde::de::Error::custom("RequestBody must be a JSON object")
-        })?;
+        let obj = value
+            .as_object()
+            .ok_or_else(|| serde::de::Error::custom("RequestBody must be a JSON object"))?;
 
         if obj.contains_key("none") {
             Ok(RequestBody::None)

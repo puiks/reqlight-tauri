@@ -14,16 +14,24 @@
     appStore.sidebarVisible = !appStore.sidebarVisible;
   }
 
-  function toggleTheme() {
-    const html = document.documentElement;
-    const current = html.getAttribute("data-theme");
-    if (current === "dark") {
-      html.removeAttribute("data-theme");
-      localStorage.removeItem("theme");
+  let isDark = $state(false);
+
+  $effect(() => {
+    // Initialize from saved preference or system
+    const saved = localStorage.getItem("theme");
+    if (saved) {
+      isDark = saved === "dark";
     } else {
-      html.setAttribute("data-theme", "dark");
-      localStorage.setItem("theme", "dark");
+      isDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
     }
+    document.documentElement.setAttribute("data-theme", isDark ? "dark" : "light");
+  });
+
+  function toggleTheme() {
+    isDark = !isDark;
+    const theme = isDark ? "dark" : "light";
+    document.documentElement.setAttribute("data-theme", theme);
+    localStorage.setItem("theme", theme);
   }
 </script>
 
@@ -44,7 +52,7 @@
       ⤓
     </button>
     <button class="icon-btn" onclick={toggleTheme} title="Toggle Theme">
-      ◐
+      {isDark ? '☀' : '☾'}
     </button>
   </div>
 </div>

@@ -22,12 +22,6 @@
       }
     });
 
-    // Apply saved theme
-    const savedTheme = localStorage.getItem("theme");
-    if (savedTheme) {
-      document.documentElement.setAttribute("data-theme", savedTheme);
-    }
-
     // Register keyboard shortcuts
     const cleanup = initKeyboardShortcuts();
 

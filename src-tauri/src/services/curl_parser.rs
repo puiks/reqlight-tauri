@@ -161,3 +161,114 @@ fn parse_header(raw: &str) -> Option<(String, String)> {
     let value = raw[colon_idx + 1..].trim().to_string();
     Some((key, value))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::HttpMethod;
+
+    #[test]
+    fn parse_simple_get() {
+        let req = parse("curl https://example.com").unwrap();
+        assert_eq!(req.url, "https://example.com");
+        assert_eq!(req.method, HttpMethod::Get);
+    }
+
+    #[test]
+    fn parse_explicit_method() {
+        let req = parse("curl -X POST https://example.com").unwrap();
+        assert_eq!(req.method, HttpMethod::Post);
+    }
+
+    #[test]
+    fn parse_headers() {
+        let req = parse(r#"curl -H "Content-Type: application/json" -H "Authorization: Bearer token" https://example.com"#).unwrap();
+        assert_eq!(req.headers.len(), 2);
+        assert_eq!(req.headers[0].key, "Content-Type");
+        assert_eq!(req.headers[0].value, "application/json");
+        assert_eq!(req.headers[1].key, "Authorization");
+        assert_eq!(req.headers[1].value, "Bearer token");
+    }
+
+    #[test]
+    fn parse_json_body() {
+        let req = parse(r#"curl -d '{"name":"test"}' https://example.com"#).unwrap();
+        assert_eq!(req.method, HttpMethod::Post); // auto-promoted from GET
+        match &req.body {
+            RequestBody::Json(s) => assert_eq!(s, r#"{"name":"test"}"#),
+            _ => panic!("Expected Json body"),
+        }
+    }
+
+    #[test]
+    fn parse_form_data() {
+        let req = parse("curl -d 'foo=bar&baz=qux' https://example.com").unwrap();
+        match &req.body {
+            RequestBody::FormData(pairs) => {
+                assert_eq!(pairs.len(), 2);
+                assert_eq!(pairs[0].key, "foo");
+                assert_eq!(pairs[0].value, "bar");
+                assert_eq!(pairs[1].key, "baz");
+                assert_eq!(pairs[1].value, "qux");
+            }
+            _ => panic!("Expected FormData body"),
+        }
+    }
+
+    #[test]
+    fn parse_raw_text_body() {
+        let req = parse("curl -d 'hello world' https://example.com").unwrap();
+        match &req.body {
+            RequestBody::RawText(s) => assert_eq!(s, "hello world"),
+            _ => panic!("Expected RawText body"),
+        }
+    }
+
+    #[test]
+    fn parse_line_continuations() {
+        let input = "curl \\\n  -X PUT \\\n  https://example.com";
+        let req = parse(input).unwrap();
+        assert_eq!(req.method, HttpMethod::Put);
+        assert_eq!(req.url, "https://example.com");
+    }
+
+    #[test]
+    fn parse_get_flag_overrides_method() {
+        let req = parse("curl -X POST -G https://example.com").unwrap();
+        assert_eq!(req.method, HttpMethod::Get);
+    }
+
+    #[test]
+    fn parse_empty_returns_error() {
+        assert!(parse("").is_err());
+    }
+
+    #[test]
+    fn parse_no_url_returns_error() {
+        assert!(parse("curl -X GET").is_err());
+    }
+
+    #[test]
+    fn tokenize_handles_single_quotes() {
+        let tokens = tokenize("curl -d 'hello world' http://x.com");
+        assert_eq!(tokens, vec!["curl", "-d", "hello world", "http://x.com"]);
+    }
+
+    #[test]
+    fn tokenize_handles_double_quotes() {
+        let tokens = tokenize(r#"curl -H "Content-Type: json" http://x.com"#);
+        assert_eq!(
+            tokens,
+            vec!["curl", "-H", "Content-Type: json", "http://x.com"]
+        );
+    }
+
+    #[test]
+    fn tokenize_handles_escaped_chars() {
+        let tokens = tokenize(r#"curl -d "hello \"world\"" http://x.com"#);
+        assert_eq!(
+            tokens,
+            vec!["curl", "-d", r#"hello "world""#, "http://x.com"]
+        );
+    }
+}
