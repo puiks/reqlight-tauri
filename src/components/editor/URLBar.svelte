@@ -35,6 +35,17 @@
     class:invalid={!editorStore.isUrlValid}
   />
 
+  <div class="timeout-group" title="Request timeout (seconds)">
+    <input
+      type="number"
+      class="timeout-input"
+      min="1"
+      max="300"
+      bind:value={editorStore.timeoutSecs}
+    />
+    <span class="timeout-label">s</span>
+  </div>
+
   {#if editorStore.isLoading}
     <button class="cancel-btn" onclick={() => editorStore.cancel()}>Cancel</button>
   {:else}
@@ -96,5 +107,27 @@
     font-weight: 600;
     padding: var(--sp-xs) var(--sp-lg);
     border-radius: var(--radius-sm);
+  }
+  .timeout-group {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+  }
+  .timeout-input {
+    width: 42px;
+    text-align: center;
+    font-family: var(--font-mono);
+    font-size: var(--fs-caption);
+    padding: var(--sp-xs) 2px;
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
+  .timeout-input::-webkit-inner-spin-button,
+  .timeout-input::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+  }
+  .timeout-label {
+    font-size: var(--fs-caption);
+    color: var(--text-tertiary);
   }
 </style>

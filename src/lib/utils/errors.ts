@@ -1,4 +1,4 @@
-import { appStore } from '../stores/app.svelte'
+import { toastStore } from '../stores/toast.svelte'
 
 /**
  * Centralized error handler.
@@ -9,7 +9,7 @@ export function handleError(error: unknown, context: string, options?: { silent?
   console.error(`[${context}]`, message)
 
   if (!options?.silent) {
-    appStore.showToast(`Error: ${message}`)
+    toastStore.show(`Error: ${message}`)
   }
 }
 

@@ -1,38 +1,38 @@
 <script lang="ts">
-  import { appStore } from "../../lib/stores/app.svelte";
+  import { environmentStore } from "../../lib/stores/environment.svelte";
   import KeyValueEditor from "../editor/KeyValueEditor.svelte";
   import Modal from "../shared/Modal.svelte";
 
   let { onclose }: { onclose: () => void } = $props();
 
   let selectedEnvId = $state<string | null>(
-    appStore.environments[0]?.id ?? null,
+    environmentStore.environments[0]?.id ?? null,
   );
 
   const selectedEnv = $derived(
-    appStore.environments.find((e) => e.id === selectedEnvId),
+    environmentStore.environments.find((e) => e.id === selectedEnvId),
   );
 
   function addEnvironment() {
-    const env = appStore.addEnvironment();
+    const env = environmentStore.addEnvironment();
     selectedEnvId = env.id;
   }
 
   function deleteEnvironment() {
     if (!selectedEnvId) return;
-    appStore.deleteEnvironment(selectedEnvId);
-    selectedEnvId = appStore.environments[0]?.id ?? null;
+    environmentStore.deleteEnvironment(selectedEnvId);
+    selectedEnvId = environmentStore.environments[0]?.id ?? null;
   }
 
   function handleNameChange(e: Event) {
     if (!selectedEnv) return;
     const name = (e.target as HTMLInputElement).value;
-    appStore.updateEnvironment({ ...selectedEnv, name });
+    environmentStore.updateEnvironment({ ...selectedEnv, name });
   }
 
   function handleVarsChange() {
     if (!selectedEnv) return;
-    appStore.updateEnvironment(selectedEnv);
+    environmentStore.updateEnvironment(selectedEnv);
   }
 </script>
 
@@ -42,7 +42,7 @@
       <div class="list-header">
         <button class="add-btn" onclick={addEnvironment}>+ Add</button>
       </div>
-      {#each appStore.environments as env (env.id)}
+      {#each environmentStore.environments as env (env.id)}
         <!-- svelte-ignore a11y_click_events_have_key_events -->
         <!-- svelte-ignore a11y_no_static_element_interactions -->
         <div
@@ -53,7 +53,7 @@
           {env.name}
         </div>
       {/each}
-      {#if appStore.environments.length === 0}
+      {#if environmentStore.environments.length === 0}
         <div class="no-envs">No environments yet.</div>
       {/if}
     </div>

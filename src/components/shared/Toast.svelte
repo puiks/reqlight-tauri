@@ -1,10 +1,10 @@
 <script lang="ts">
-  import { appStore } from "../../lib/stores/app.svelte";
+  import { toastStore } from "../../lib/stores/toast.svelte";
 </script>
 
-{#if appStore.toastMessage}
+{#if toastStore.message}
   <div class="toast" role="alert">
-    {appStore.toastMessage}
+    {toastStore.message}
   </div>
 {/if}
 

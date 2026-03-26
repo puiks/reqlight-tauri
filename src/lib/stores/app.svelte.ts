@@ -1,37 +1,34 @@
 import { loadState, saveState } from "../commands";
-import { MAX_HISTORY_ENTRIES, SAVE_DEBOUNCE_MS } from "../constants";
+import { SAVE_DEBOUNCE_MS } from "../constants";
 import {
   createEmptyBody,
   createEmptyPair,
   type AppState,
-  type HttpMethod,
   type RequestCollection,
-  type RequestEnvironment,
-  type RequestHistoryEntry,
   type SavedRequest,
 } from "../types";
 import { handleError } from "../utils/errors";
+import { environmentStore } from "./environment.svelte";
+import { historyStore } from "./history.svelte";
+import { toastStore } from "./toast.svelte";
 
 class AppStore {
   collections = $state<RequestCollection[]>([]);
-  environments = $state<RequestEnvironment[]>([]);
-  activeEnvironmentId = $state<string | null>(null);
   selectedCollectionId = $state<string | null>(null);
   selectedRequestId = $state<string | null>(null);
-  history = $state<RequestHistoryEntry[]>([]);
   sidebarVisible = $state(true);
   searchQuery = $state("");
-  toastMessage = $state<string | null>(null);
   isLoading = $state(false);
 
   private saveTimer: ReturnType<typeof setTimeout> | null = null;
 
-  // Derived
-  get activeEnvironment(): RequestEnvironment | undefined {
-    if (!this.activeEnvironmentId) return undefined;
-    return this.environments.find((e) => e.id === this.activeEnvironmentId);
+  constructor() {
+    // Wire sub-stores to trigger save on change
+    environmentStore.onStateChange(() => this.scheduleSave());
+    historyStore.onStateChange(() => this.scheduleSave());
   }
 
+  // Derived
   get selectedRequest(): SavedRequest | undefined {
     if (!this.selectedRequestId) return undefined;
     for (const c of this.collections) {
@@ -43,9 +40,7 @@ class AppStore {
 
   get selectedCollection(): RequestCollection | undefined {
     if (!this.selectedCollectionId) return undefined;
-    return this.collections.find(
-      (c) => c.id === this.selectedCollectionId,
-    );
+    return this.collections.find((c) => c.id === this.selectedCollectionId);
   }
 
   get filteredCollections(): RequestCollection[] {
@@ -71,12 +66,20 @@ class AppStore {
     this.isLoading = true;
     try {
       const state = await loadState();
-      this.collections = state.collections;
-      this.environments = state.environments;
-      this.activeEnvironmentId = state.activeEnvironmentId;
+      // Sort collections and their requests by sortOrder on load
+      this.collections = state.collections
+        .sort((a, b) => a.sortOrder - b.sortOrder)
+        .map((c) => ({
+          ...c,
+          requests: [...c.requests].sort((a, b) => a.sortOrder - b.sortOrder),
+        }));
       this.selectedCollectionId = state.lastSelectedCollectionId;
       this.selectedRequestId = state.lastSelectedRequestId;
-      this.history = state.history;
+      environmentStore.environments = state.environments;
+      environmentStore.activeEnvironmentId = state.activeEnvironmentId;
+      // Mask secret values so they don't linger in reactive state
+      environmentStore.maskSecrets();
+      historyStore.history = state.history;
     } catch (e) {
       handleError(e, "AppStore.load", { silent: true });
     } finally {
@@ -90,7 +93,6 @@ class AppStore {
     this.saveTimer = setTimeout(() => this.save(), SAVE_DEBOUNCE_MS);
   }
 
-  // Immediately flush any pending debounced save (for window close)
   flushSave() {
     if (this.saveTimer) {
       clearTimeout(this.saveTimer);
@@ -102,11 +104,11 @@ class AppStore {
   private async save() {
     const state: AppState = {
       collections: this.collections,
-      environments: this.environments,
-      activeEnvironmentId: this.activeEnvironmentId,
+      environments: environmentStore.environments,
+      activeEnvironmentId: environmentStore.activeEnvironmentId,
       lastSelectedCollectionId: this.selectedCollectionId,
       lastSelectedRequestId: this.selectedRequestId,
-      history: this.history,
+      history: historyStore.history,
     };
     try {
       await saveState(state);
@@ -127,7 +129,7 @@ class AppStore {
     this.collections = [...this.collections, collection];
     this.selectedCollectionId = collection.id;
     this.scheduleSave();
-    this.showToast(`Collection "${name}" created`);
+    toastStore.show(`Collection "${name}" created`);
     return collection;
   }
 
@@ -146,7 +148,7 @@ class AppStore {
       this.selectedRequestId = null;
     }
     this.scheduleSave();
-    if (name) this.showToast(`Collection "${name}" deleted`);
+    if (name) toastStore.show(`Collection "${name}" deleted`);
   }
 
   // Request CRUD
@@ -200,7 +202,7 @@ class AppStore {
       this.selectedRequestId = null;
     }
     this.scheduleSave();
-    if (name) this.showToast(`Request "${name}" deleted`);
+    if (name) toastStore.show(`Request "${name}" deleted`);
   }
 
   duplicateRequest(requestId: string) {
@@ -221,7 +223,7 @@ class AppStore {
         );
         this.selectedRequestId = duplicate.id;
         this.scheduleSave();
-        this.showToast(`Request duplicated`);
+        toastStore.show(`Request duplicated`);
         return duplicate;
       }
     }
@@ -241,71 +243,10 @@ class AppStore {
       const requests = [...c.requests];
       const [moved] = requests.splice(fromIndex, 1);
       requests.splice(toIndex, 0, moved);
-      return { ...c, requests };
+      // Sync sortOrder to match new array positions
+      return { ...c, requests: requests.map((r, i) => ({ ...r, sortOrder: i })) };
     });
     this.scheduleSave();
-  }
-
-  // History
-  addHistoryEntry(entry: Omit<RequestHistoryEntry, "id" | "timestamp">) {
-    const newEntry: RequestHistoryEntry = {
-      id: crypto.randomUUID(),
-      ...entry,
-      timestamp: new Date().toISOString(),
-    };
-    this.history = [newEntry, ...this.history].slice(
-      0,
-      MAX_HISTORY_ENTRIES,
-    );
-    this.scheduleSave();
-  }
-
-  clearHistory() {
-    this.history = [];
-    this.scheduleSave();
-    this.showToast("History cleared");
-  }
-
-  // Environment
-  addEnvironment(name = "New Environment") {
-    const env: RequestEnvironment = {
-      id: crypto.randomUUID(),
-      name,
-      variables: [createEmptyPair()],
-    };
-    this.environments = [...this.environments, env];
-    this.scheduleSave();
-    return env;
-  }
-
-  updateEnvironment(env: RequestEnvironment) {
-    this.environments = this.environments.map((e) =>
-      e.id === env.id ? env : e,
-    );
-    this.scheduleSave();
-  }
-
-  deleteEnvironment(id: string) {
-    this.environments = this.environments.filter((e) => e.id !== id);
-    if (this.activeEnvironmentId === id) {
-      this.activeEnvironmentId = null;
-    }
-    this.scheduleSave();
-  }
-
-  setActiveEnvironment(id: string | null) {
-    this.activeEnvironmentId = id;
-    this.scheduleSave();
-  }
-
-  // Toast
-  private toastTimer: ReturnType<typeof setTimeout> | null = null;
-  showToast(message: string) {
-    this.toastMessage = message;
-    if (this.toastTimer) clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => {
-      this.toastMessage = null;
-    }, 2000);
   }
 }
 

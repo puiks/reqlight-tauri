@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { appStore } from "../../lib/stores/app.svelte";
+  import { environmentStore } from "../../lib/stores/environment.svelte";
 
   let { onmanage }: { onmanage: () => void } = $props();
 </script>
@@ -7,14 +7,14 @@
 <div class="env-picker">
   <select
     class="env-select"
-    value={appStore.activeEnvironmentId ?? ""}
+    value={environmentStore.activeEnvironmentId ?? ""}
     onchange={(e) => {
       const val = e.currentTarget.value;
-      appStore.setActiveEnvironment(val || null);
+      environmentStore.setActiveEnvironment(val || null);
     }}
   >
     <option value="">No Environment</option>
-    {#each appStore.environments as env}
+    {#each environmentStore.environments as env}
       <option value={env.id}>{env.name}</option>
     {/each}
   </select>

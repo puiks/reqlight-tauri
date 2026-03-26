@@ -2,6 +2,7 @@
   import { parseCurl } from "../../lib/commands";
   import { appStore } from "../../lib/stores/app.svelte";
   import { editorStore } from "../../lib/stores/editor.svelte";
+  import { toastStore } from "../../lib/stores/toast.svelte";
   import Modal from "../shared/Modal.svelte";
 
   let { onclose }: { onclose: () => void } = $props();
@@ -25,7 +26,7 @@
       const updated = { ...added, ...request, id: added.id };
       appStore.updateRequest(updated);
       editorStore.loadFrom(updated);
-      appStore.showToast("cURL imported successfully");
+      toastStore.show("cURL imported successfully");
       onclose();
     } catch (e) {
       errorMsg = e instanceof Error ? e.message : String(e);

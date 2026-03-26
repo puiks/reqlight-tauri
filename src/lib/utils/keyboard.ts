@@ -21,9 +21,9 @@ export function registerShortcut(entry: ShortcutEntry): () => void {
 export function initKeyboardShortcuts(): () => void {
   const listener = (e: KeyboardEvent) => {
     for (const s of shortcuts) {
-      const metaMatch = s.meta ? e.metaKey || e.ctrlKey : true;
-      const shiftMatch = s.shift ? e.shiftKey : !e.shiftKey;
-      const altMatch = s.alt ? e.altKey : !e.altKey;
+      const metaMatch = s.meta ? e.metaKey || e.ctrlKey : !e.metaKey && !e.ctrlKey;
+      const shiftMatch = s.shift === undefined ? true : s.shift ? e.shiftKey : !e.shiftKey;
+      const altMatch = s.alt === undefined ? true : s.alt ? e.altKey : !e.altKey;
       if (
         e.key.toLowerCase() === s.key.toLowerCase() &&
         metaMatch &&

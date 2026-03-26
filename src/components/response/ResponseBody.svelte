@@ -38,6 +38,12 @@
     </button>
   </div>
 
+  {#if response.isTruncated}
+    <div class="truncation-warning">
+      Response truncated — body is {(response.bodySize / 1024 / 1024).toFixed(1)} MB, only first 5 MB shown.
+    </div>
+  {/if}
+
   <div class="body-content">
     {#if highlightedHtml}
       <pre class="highlighted"><code>{@html highlightedHtml}</code></pre>
@@ -88,5 +94,13 @@
     word-break: break-all;
     margin: 0;
     user-select: text;
+  }
+  .truncation-warning {
+    padding: var(--sp-xs) var(--sp-md);
+    background: rgba(245, 158, 11, 0.1);
+    color: var(--color-warning);
+    font-size: var(--fs-caption);
+    font-weight: 600;
+    border-bottom: 1px solid var(--border-light);
   }
 </style>

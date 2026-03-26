@@ -13,7 +13,10 @@ import {
   type ResponseTab,
   type SavedRequest,
 } from "../types";
+import { DEFAULT_REQUEST_TIMEOUT } from "../constants";
 import { appStore } from "./app.svelte";
+import { environmentStore } from "./environment.svelte";
+import { historyStore } from "./history.svelte";
 
 class EditorStore {
   // Request fields
@@ -35,6 +38,7 @@ class EditorStore {
   isLoading = $state(false);
   errorMessage = $state<string | null>(null);
   isDirty = $state(false);
+  timeoutSecs = $state(DEFAULT_REQUEST_TIMEOUT);
 
   // Derived
   get isUrlValid(): boolean {
@@ -136,16 +140,18 @@ class EditorStore {
         headers: this.headers,
         queryParams: this.queryParams,
         body,
-        environment: appStore.activeEnvironment,
+        timeoutSecs: this.timeoutSecs,
+        environment: environmentStore.activeEnvironment,
       });
       this.response = result;
 
-      // Add to history
-      appStore.addHistoryEntry({
+      // Add to history with full request snapshot for replay
+      historyStore.addEntry({
         method: this.method,
         url: this.url,
         statusCode: result.statusCode,
         elapsedTime: result.elapsedTime,
+        snapshot: this.toSavedRequest() ?? undefined,
       });
     } catch (e) {
       this.errorMessage =

@@ -1,25 +1,55 @@
 <script lang="ts">
   import { appStore } from "../../lib/stores/app.svelte";
+  import { editorStore } from "../../lib/stores/editor.svelte";
+  import { historyStore } from "../../lib/stores/history.svelte";
+  import { createEmptyPair, createEmptyBody, type RequestHistoryEntry } from "../../lib/types";
   import HttpMethodBadge from "../shared/HttpMethodBadge.svelte";
 
   let expanded = $state(false);
 
-  const recentHistory = $derived(appStore.history.slice(0, 10));
+  const recentHistory = $derived(historyStore.history.slice(0, 10));
+
+  function replayEntry(entry: RequestHistoryEntry) {
+    editorStore.saveIfDirty();
+    if (entry.snapshot) {
+      // Full replay from snapshot
+      editorStore.loadFrom({ ...entry.snapshot, id: crypto.randomUUID(), name: "History Replay" });
+      editorStore.requestId = null; // Detach from saved request
+      editorStore.isDirty = false;
+    } else {
+      // Fallback: only method + URL available (old history entries)
+      editorStore.requestId = null;
+      editorStore.name = "History Replay";
+      editorStore.method = entry.method;
+      editorStore.url = entry.url;
+      editorStore.queryParams = [createEmptyPair()];
+      editorStore.headers = [createEmptyPair()];
+      editorStore.bodyType = "none";
+      editorStore.jsonBody = "";
+      editorStore.rawBody = "";
+      editorStore.formPairs = [createEmptyPair()];
+      editorStore.response = null;
+      editorStore.errorMessage = null;
+      editorStore.isDirty = false;
+    }
+  }
 </script>
 
-{#if appStore.history.length > 0}
+{#if historyStore.history.length > 0}
   <div class="history-section">
     <!-- svelte-ignore a11y_click_events_have_key_events -->
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div class="header" onclick={() => (expanded = !expanded)}>
       <span class="chevron">{expanded ? "▾" : "▸"}</span>
       <span class="title">History</span>
-      <span class="count">{appStore.history.length}</span>
+      <span class="count">{historyStore.history.length}</span>
     </div>
     {#if expanded}
       <div class="entries">
         {#each recentHistory as entry (entry.id)}
-          <div class="entry">
+          <!-- svelte-ignore a11y_click_events_have_key_events -->
+          <!-- svelte-ignore a11y_no_static_element_interactions -->
+          <div class="entry" onclick={() => replayEntry(entry)}>
             <HttpMethodBadge method={entry.method} />
             <span class="url">{entry.url}</span>
             {#if entry.statusCode}
@@ -34,7 +64,7 @@
             {/if}
           </div>
         {/each}
-        <button class="clear-btn" onclick={() => appStore.clearHistory()}>
+        <button class="clear-btn" onclick={() => historyStore.clear()}>
           Clear History
         </button>
       </div>
@@ -85,6 +115,10 @@
     padding: 3px var(--sp-sm);
     font-size: var(--fs-footnote);
     border-radius: var(--radius-sm);
+    cursor: pointer;
+  }
+  .entry:hover {
+    background: var(--bg-hover);
   }
   .url {
     flex: 1;
