@@ -1,0 +1,249 @@
+/* ===== CSS Variables / Design Tokens ===== */
+:root {
+  /* Method colors */
+  --color-method-get: #22c55e;
+  --color-method-post: #f97316;
+  --color-method-put: #3b82f6;
+  --color-method-patch: #a855f7;
+  --color-method-delete: #ef4444;
+
+  /* Status colors */
+  --color-success: #22c55e;
+  --color-warning: #f59e0b;
+  --color-error: #ef4444;
+  --color-info: #3b82f6;
+
+  /* Spacing */
+  --sp-xs: 4px;
+  --sp-sm: 8px;
+  --sp-md: 12px;
+  --sp-lg: 16px;
+  --sp-xl: 20px;
+
+  /* Radius */
+  --radius-sm: 3px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+
+  /* Typography */
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "SF Mono", "Fira Code", "Cascadia Code", Menlo, Consolas,
+    "Liberation Mono", monospace;
+  --fs-caption: 10px;
+  --fs-footnote: 11px;
+  --fs-small: 12px;
+  --fs-body: 13px;
+  --fs-callout: 14px;
+}
+
+/* ===== Light Theme (default) ===== */
+:root,
+[data-theme="light"] {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f5f5f5;
+  --bg-tertiary: #e8e8e8;
+  --bg-hover: rgba(0, 0, 0, 0.04);
+  --bg-selected: rgba(59, 130, 246, 0.1);
+  --bg-input: #ffffff;
+  --bg-editor: #fafafa;
+
+  --border-color: #e0e0e0;
+  --border-light: #f0f0f0;
+
+  --text-primary: #1a1a1a;
+  --text-secondary: #666666;
+  --text-tertiary: #999999;
+  --text-inverse: #ffffff;
+
+  --scrollbar-thumb: rgba(0, 0, 0, 0.2);
+  --scrollbar-track: transparent;
+
+  color-scheme: light;
+}
+
+/* ===== Dark Theme ===== */
+[data-theme="dark"] {
+  --bg-primary: #1e1e1e;
+  --bg-secondary: #252526;
+  --bg-tertiary: #333333;
+  --bg-hover: rgba(255, 255, 255, 0.06);
+  --bg-selected: rgba(59, 130, 246, 0.15);
+  --bg-input: #2d2d2d;
+  --bg-editor: #1e1e1e;
+
+  --border-color: #404040;
+  --border-light: #333333;
+
+  --text-primary: #e0e0e0;
+  --text-secondary: #999999;
+  --text-tertiary: #666666;
+  --text-inverse: #1a1a1a;
+
+  --scrollbar-thumb: rgba(255, 255, 255, 0.2);
+  --scrollbar-track: transparent;
+
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg-primary: #1e1e1e;
+    --bg-secondary: #252526;
+    --bg-tertiary: #333333;
+    --bg-hover: rgba(255, 255, 255, 0.06);
+    --bg-selected: rgba(59, 130, 246, 0.15);
+    --bg-input: #2d2d2d;
+    --bg-editor: #1e1e1e;
+
+    --border-color: #404040;
+    --border-light: #333333;
+
+    --text-primary: #e0e0e0;
+    --text-secondary: #999999;
+    --text-tertiary: #666666;
+    --text-inverse: #1a1a1a;
+
+    --scrollbar-thumb: rgba(255, 255, 255, 0.2);
+    --scrollbar-track: transparent;
+
+    color-scheme: dark;
+  }
+}
+
+/* ===== Reset ===== */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: var(--fs-body);
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  user-select: none;
+}
+
+input,
+textarea,
+select,
+button {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+}
+
+input,
+textarea {
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: var(--sp-xs) var(--sp-sm);
+  outline: none;
+  user-select: text;
+}
+
+input:focus,
+textarea:focus {
+  border-color: var(--color-info);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  background: none;
+  padding: var(--sp-xs) var(--sp-sm);
+  border-radius: var(--radius-sm);
+}
+
+button:hover {
+  background: var(--bg-hover);
+}
+
+/* ===== Scrollbar ===== */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+
+/* ===== JSON Syntax Highlighting ===== */
+.json-key {
+  color: #0451a5;
+}
+.json-string {
+  color: #a31515;
+}
+.json-number {
+  color: #098658;
+}
+.json-boolean {
+  color: #0000ff;
+}
+.json-null {
+  color: #808080;
+}
+.json-brace,
+.json-bracket {
+  color: var(--text-secondary);
+}
+.json-colon,
+.json-comma {
+  color: var(--text-secondary);
+}
+
+[data-theme="dark"] .json-key,
+:root:not([data-theme="light"]) .json-key {
+  color: #9cdcfe;
+}
+[data-theme="dark"] .json-string,
+:root:not([data-theme="light"]) .json-string {
+  color: #ce9178;
+}
+[data-theme="dark"] .json-number,
+:root:not([data-theme="light"]) .json-number {
+  color: #b5cea8;
+}
+[data-theme="dark"] .json-boolean,
+:root:not([data-theme="light"]) .json-boolean {
+  color: #569cd6;
+}
+[data-theme="dark"] .json-null,
+:root:not([data-theme="light"]) .json-null {
+  color: #808080;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .json-key {
+    color: #9cdcfe;
+  }
+  :root:not([data-theme="light"]) .json-string {
+    color: #ce9178;
+  }
+  :root:not([data-theme="light"]) .json-number {
+    color: #b5cea8;
+  }
+  :root:not([data-theme="light"]) .json-boolean {
+    color: #569cd6;
+  }
+}
