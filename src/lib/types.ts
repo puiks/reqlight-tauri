@@ -50,6 +50,8 @@ export interface RequestHistoryEntry {
   statusCode: number | null;
   timestamp: string;
   elapsedTime: number | null;
+  /** Full request snapshot for replay (frontend-only, not persisted to Rust) */
+  snapshot?: SavedRequest;
 }
 
 export interface HeaderPair {

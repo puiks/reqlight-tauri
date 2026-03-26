@@ -15,6 +15,8 @@ import {
 } from "../types";
 import { DEFAULT_REQUEST_TIMEOUT } from "../constants";
 import { appStore } from "./app.svelte";
+import { environmentStore } from "./environment.svelte";
+import { historyStore } from "./history.svelte";
 
 class EditorStore {
   // Request fields
@@ -139,16 +141,17 @@ class EditorStore {
         queryParams: this.queryParams,
         body,
         timeoutSecs: this.timeoutSecs,
-        environment: appStore.activeEnvironment,
+        environment: environmentStore.activeEnvironment,
       });
       this.response = result;
 
-      // Add to history
-      appStore.addHistoryEntry({
+      // Add to history with full request snapshot for replay
+      historyStore.addEntry({
         method: this.method,
         url: this.url,
         statusCode: result.statusCode,
         elapsedTime: result.elapsedTime,
+        snapshot: this.toSavedRequest() ?? undefined,
       });
     } catch (e) {
       this.errorMessage =
