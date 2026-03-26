@@ -42,20 +42,23 @@ pub fn export(request: &SavedRequest, environment: Option<&RequestEnvironment>) 
         let sep = if url_string.contains('?') { "&" } else { "?" };
         url_string = format!("{url_string}{sep}{qs}");
     }
-    parts.push(format!("'{url_string}'"));
+    parts.push(format!("'{}'", shell_escape(&url_string)));
 
     // Headers
     for h in headers.iter().filter(|h| h.is_enabled && !h.key.is_empty()) {
-        parts.push(format!("-H '{}: {}'", h.key, h.value));
+        parts.push(format!(
+            "-H '{}'",
+            shell_escape(&format!("{}: {}", h.key, h.value))
+        ));
     }
 
     // Body
     match &body {
         RequestBody::Json(s) => {
-            parts.push(format!("-d '{s}'"));
+            parts.push(format!("-d '{}'", shell_escape(s)));
         }
         RequestBody::RawText(s) => {
-            parts.push(format!("-d '{s}'"));
+            parts.push(format!("-d '{}'", shell_escape(s)));
         }
         RequestBody::FormData(pairs) => {
             let encoded: String = pairs
@@ -64,7 +67,7 @@ pub fn export(request: &SavedRequest, environment: Option<&RequestEnvironment>) 
                 .map(|p| format!("{}={}", percent_encode(&p.key), percent_encode(&p.value)))
                 .collect::<Vec<_>>()
                 .join("&");
-            parts.push(format!("-d '{encoded}'"));
+            parts.push(format!("-d '{}'", shell_escape(&encoded)));
         }
         RequestBody::None => {}
     }
@@ -74,6 +77,14 @@ pub fn export(request: &SavedRequest, environment: Option<&RequestEnvironment>) 
 
 fn percent_encode(s: &str) -> String {
     urlencoding::encode(s).into_owned()
+}
+
+/// Escape a string for safe embedding inside single quotes in a shell command.
+/// Single quotes cannot be escaped inside single quotes, so we break out of the
+/// single-quoted string, add an escaped single quote, then re-enter.
+/// e.g. "it's" → 'it'\''s'
+fn shell_escape(s: &str) -> String {
+    s.replace('\'', "'\\''")
 }
 
 #[cfg(test)]
@@ -182,6 +193,23 @@ mod tests {
         }];
         let result = export(&req, None);
         assert!(!result.contains("X-Skip"));
+    }
+
+    #[test]
+    fn export_body_with_single_quotes_escaped() {
+        let mut req = base_request();
+        req.method = HttpMethod::Post;
+        req.body = RequestBody::Json(r#"{"msg":"it's a test"}"#.to_string());
+        let result = export(&req, None);
+        assert!(result.contains(r#"-d '{"msg":"it'\''s a test"}'"#));
+    }
+
+    #[test]
+    fn export_header_with_single_quotes_escaped() {
+        let mut req = base_request();
+        req.headers = vec![make_kv("X-Msg", "it's")];
+        let result = export(&req, None);
+        assert!(result.contains(r#"-H 'X-Msg: it'\''s'"#));
     }
 
     #[test]

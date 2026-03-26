@@ -1,4 +1,4 @@
-import { sendRequest } from "../commands";
+import { sendRequest, cancelRequest } from "../commands";
 import {
   buildRequestBody,
   createEmptyPair,
@@ -118,6 +118,7 @@ class EditorStore {
   async send() {
     if (!this.canSend) return;
 
+    // Synchronously set loading to prevent double-send from rapid clicks
     this.isLoading = true;
     this.errorMessage = null;
     this.response = null;
@@ -154,8 +155,14 @@ class EditorStore {
     }
   }
 
-  // Cancel (no direct abort support, just clear loading)
-  cancel() {
+  // Cancel the in-flight request via Rust-side Notify
+  async cancel() {
+    if (!this.isLoading) return;
+    try {
+      await cancelRequest();
+    } catch {
+      // best-effort
+    }
     this.isLoading = false;
   }
 

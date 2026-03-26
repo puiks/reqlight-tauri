@@ -90,6 +90,15 @@ class AppStore {
     this.saveTimer = setTimeout(() => this.save(), SAVE_DEBOUNCE_MS);
   }
 
+  // Immediately flush any pending debounced save (for window close)
+  flushSave() {
+    if (this.saveTimer) {
+      clearTimeout(this.saveTimer);
+      this.saveTimer = null;
+      this.save();
+    }
+  }
+
   private async save() {
     const state: AppState = {
       collections: this.collections,

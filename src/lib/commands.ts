@@ -31,6 +31,10 @@ export async function sendRequest(params: {
   return invoke<ResponseRecord>("send_request", params);
 }
 
+export async function cancelRequest(): Promise<void> {
+  return invoke("cancel_request");
+}
+
 // Keychain
 export async function secretSet(
   key: string,

@@ -10,6 +10,9 @@ pub fn parse(curl: &str) -> Result<SavedRequest, String> {
 
     let mut request = SavedRequest::default();
     let mut i = 0;
+    let mut explicit_method = false; // true if -X was used
+    let mut has_data = false;
+    let mut force_get = false; // true if -G was used
 
     // Skip "curl" prefix
     if tokens.first().map(|s| s.to_lowercase()) == Some("curl".to_string()) {
@@ -22,6 +25,7 @@ pub fn parse(curl: &str) -> Result<SavedRequest, String> {
             "-X" | "--request" => {
                 i += 1;
                 if i < tokens.len() {
+                    explicit_method = true;
                     request.method = match tokens[i].to_uppercase().as_str() {
                         "GET" => HttpMethod::Get,
                         "POST" => HttpMethod::Post,
@@ -48,6 +52,7 @@ pub fn parse(curl: &str) -> Result<SavedRequest, String> {
             }
             "-d" | "--data" | "--data-raw" | "--data-binary" => {
                 i += 1;
+                has_data = true;
                 if i < tokens.len() {
                     let body_text = &tokens[i];
                     let trimmed = body_text.trim();
@@ -77,13 +82,15 @@ pub fn parse(curl: &str) -> Result<SavedRequest, String> {
                     } else {
                         request.body = RequestBody::RawText(body_text.clone());
                     }
-                    if request.method == HttpMethod::Get {
-                        request.method = HttpMethod::Post;
-                    }
                 }
             }
             "-G" | "--get" => {
-                request.method = HttpMethod::Get;
+                // -G forces GET and tells curl to append -d data as query string.
+                // Only override method if -X was not explicitly given.
+                force_get = true;
+                if !explicit_method {
+                    request.method = HttpMethod::Get;
+                }
             }
             _ => {
                 if !token.starts_with('-') && request.url.is_empty() {
@@ -96,6 +103,11 @@ pub fn parse(curl: &str) -> Result<SavedRequest, String> {
 
     if request.url.is_empty() {
         return Err("No URL found in cURL command".to_string());
+    }
+
+    // Auto-promote to POST if body data was provided, no explicit method, and no -G flag
+    if has_data && !explicit_method && !force_get && request.method == HttpMethod::Get {
+        request.method = HttpMethod::Post;
     }
 
     Ok(request)
@@ -233,8 +245,30 @@ mod tests {
     }
 
     #[test]
-    fn parse_get_flag_overrides_method() {
+    fn parse_get_flag_without_explicit_method() {
+        // -G without -X forces GET
+        let req = parse("curl -d 'foo=bar' -G https://example.com").unwrap();
+        assert_eq!(req.method, HttpMethod::Get);
+    }
+
+    #[test]
+    fn parse_get_flag_does_not_override_explicit_method() {
+        // -X POST takes precedence over -G
         let req = parse("curl -X POST -G https://example.com").unwrap();
+        assert_eq!(req.method, HttpMethod::Post);
+    }
+
+    #[test]
+    fn parse_data_auto_promotes_to_post() {
+        // -d without -X should auto-promote to POST
+        let req = parse("curl -d 'test' https://example.com").unwrap();
+        assert_eq!(req.method, HttpMethod::Post);
+    }
+
+    #[test]
+    fn parse_data_with_explicit_get_stays_get() {
+        // -X GET with -d should keep GET (user explicitly chose it)
+        let req = parse("curl -X GET -d 'test' https://example.com").unwrap();
         assert_eq!(req.method, HttpMethod::Get);
     }
 

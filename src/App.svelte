@@ -70,6 +70,7 @@
     // Save on window close / unload
     const handleBeforeUnload = () => {
       editorStore.saveIfDirty();
+      appStore.flushSave();
     };
     window.addEventListener("beforeunload", handleBeforeUnload);
 

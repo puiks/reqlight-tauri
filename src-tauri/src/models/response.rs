@@ -11,6 +11,8 @@ pub struct ResponseRecord {
     pub elapsed_time: f64, // milliseconds
     pub body_size: usize,  // bytes
     pub is_json: bool,
+    #[serde(default)]
+    pub is_truncated: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
