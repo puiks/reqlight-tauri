@@ -33,10 +33,6 @@ jobs:
             runner: windows-latest
             rust-targets: ""
             args: ""
-          - name: Linux
-            runner: ubuntu-22.04
-            rust-targets: ""
-            args: ""
 
     steps:
       - uses: actions/checkout@v4
@@ -57,12 +53,6 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
-
-      - name: Install system deps (Linux)
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libssl-dev
 
       - run: pnpm install --frozen-lockfile
 
