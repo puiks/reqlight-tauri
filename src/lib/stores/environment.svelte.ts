@@ -1,21 +1,11 @@
 import { createEmptyPair, type RequestEnvironment } from "../types";
+import { ObservableStore } from "./observable.svelte";
 
 const SECRET_PLACEHOLDER = "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022";
 
-class EnvironmentStore {
+class EnvironmentStore extends ObservableStore {
   environments = $state<RequestEnvironment[]>([]);
   activeEnvironmentId = $state<string | null>(null);
-
-  private onChanged: (() => void) | null = null;
-
-  /** Register a callback to be called when state changes (for save scheduling) */
-  onStateChange(cb: () => void) {
-    this.onChanged = cb;
-  }
-
-  private notify() {
-    this.onChanged?.();
-  }
 
   /**
    * Mask secret values in environments so they don't sit in reactive state.

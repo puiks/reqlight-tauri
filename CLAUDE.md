@@ -5,7 +5,7 @@
 - **Frontend**: Svelte 5 (runes) + TypeScript + Vite
 - **Backend**: Rust + Tauri v2
 - **Package Manager**: pnpm
-- **Icons**: lucide-svelte
+- **Icons**: CSS-based (inline SVG)
 
 ## Architecture & Directory Structure
 
@@ -27,10 +27,13 @@ src/                          # Svelte 5 Frontend
 │   ├── types.ts              # Shared TypeScript types
 │   ├── constants.ts          # Magic numbers & config values
 │   ├── stores/               # Svelte 5 rune-based state ($state, $derived)
+│   │   ├── observable.svelte.ts # Base class: observer pattern for save scheduling
 │   │   ├── app.svelte.ts     # Collections, environments, history
 │   │   └── editor.svelte.ts  # Active request editor state
 │   └── utils/                # Pure utility functions
+│       ├── html.ts           # Shared escapeHtml (single source of truth)
 │       ├── json-highlighter.ts
+│       ├── xml-highlighter.ts
 │       └── keyboard.ts
 
 src-tauri/src/                # Rust Backend
@@ -40,7 +43,9 @@ src-tauri/src/                # Rust Backend
 │   ├── http.rs               # send_request
 │   ├── persistence.rs        # load_state / save_state
 │   ├── keychain.rs           # secret_get / secret_set / secret_delete
-│   └── curl.rs               # parse_curl / export_curl
+│   ├── curl.rs               # parse_curl / export_curl
+│   ├── collection_io.rs      # import_collection / export_collection
+│   └── websocket.rs          # ws_connect / ws_send / ws_disconnect
 ├── models/                   # Data structures (Serialize/Deserialize)
 │   ├── request.rs            # SavedRequest, HttpMethod, RequestBody, KeyValuePair
 │   ├── response.rs           # ResponseRecord
@@ -48,13 +53,18 @@ src-tauri/src/                # Rust Backend
 │   ├── environment.rs        # RequestEnvironment
 │   ├── history.rs            # RequestHistoryEntry
 │   └── state.rs              # AppState (root persistence)
+├── test_utils.rs             # Shared test helpers (make_kv, etc.) — #[cfg(test)] only
 └── services/                 # Business logic (testable, no Tauri deps)
-    ├── http_client.rs        # reqwest execution
+    ├── http_client.rs        # reqwest execution (tests in http_client_tests.rs)
     ├── persistence.rs        # File I/O + keychain integration
     ├── keychain.rs           # OS credential store wrapper
     ├── interpolator.rs       # {{variable}} replacement
     ├── curl_parser.rs        # cURL string → SavedRequest
-    └── curl_exporter.rs      # SavedRequest → cURL string
+    ├── curl_exporter.rs      # SavedRequest → cURL string
+    ├── collection_import.rs  # Postman collection import
+    ├── collection_export.rs  # Postman collection export
+    ├── collection_types.rs   # Shared Postman data structures
+    └── websocket.rs          # WebSocket connection manager
 ```
 
 ## Development Rules
@@ -62,20 +72,35 @@ src-tauri/src/                # Rust Backend
 ### TDD & Testing
 
 - **所有新功能必须先写测试，再写实现（TDD）。**
-- Rust 测试放在各模块文件底部的 `#[cfg(test)] mod tests {}` 中。
+- Rust 测试放在各模块文件底部的 `#[cfg(test)] mod tests {}` 中。如果测试代码导致文件超 300 行，拆到 `_tests.rs` 文件。
 - 前端测试使用 vitest + jsdom，测试文件与源文件同目录，命名 `*.test.ts`。
 - 提交前必须确保 `cargo test`、`pnpm test` 和 `pnpm check` 全部通过。
-- **Rust 最低覆盖范围**：所有 `services/` 中包含纯逻辑的模块必须有单元测试。
-- **前端最低覆盖范围**：所有 `lib/utils/` 模块必须有单元测试。新增工具函数时必须同步新增对应的 `.test.ts` 文件。
+- **Rust 最低覆盖范围**：所有 `services/` 中包含纯逻辑的模块必须有单元测试。纯 I/O 封装（如 keychain）可豁免但需注释说明原因。
+- **前端最低覆盖范围**：所有 `lib/utils/` 模块必须有单元测试。**新增 `.ts` 工具文件时必须同步新增 `.test.ts`，漏一个都不允许提交。**
 - 前端组件测试（可选）使用 `@testing-library/svelte`，重点覆盖含复杂交互逻辑的组件。
+- **Rust 测试 helper 不要在每个文件里重复定义。** 共享 helper 放 `test_utils.rs`，通过 `use crate::test_utils::*` 引入。
 
 ### File Organization
 
-- **单文件不超过 300 行。** 超过时必须拆分。
+- **单文件不超过 300 行。** 超过时必须拆分。Rust 测试行数计入总行数——如果加上测试超过 300 行，把测试拆到 `_tests.rs` 文件（用 `#[cfg(test)] #[path = "xxx_tests.rs"] mod tests;`）。
 - **按职责拆分，不按类型拆分。** 例如：把 cURL 解析和导出分成两个文件，而不是塞进一个 "curl_utils" 里。
 - **组件文件遵循单一职责原则。** 一个 `.svelte` 文件只做一件事。
 - **复用优先。** 提取共享逻辑到 `lib/utils/`（前端）或 `services/`（Rust）。
 - 新目录需要有明确的领域边界，不要随意创建。
+
+### 代码复用 & 去重
+
+- **同一个工具函数不允许在多处重复实现。** 如果两个以上文件需要同一功能（如 `escapeHtml`、`make_kv`），必须提取到共享模块。
+  - 前端共享工具函数 → `lib/utils/`（如 `html.ts`）
+  - Rust 共享测试 helper → `test_utils.rs`（`#[cfg(test)]` 门控）
+  - Store 共享逻辑 → `stores/observable.svelte.ts`（基类继承）
+- **新增工具函数前先搜索是否已有类似实现。** 用 `grep` 搜索函数名关键词，避免无意中重新造轮子。
+
+### 依赖卫生
+
+- **不引入未使用的依赖。** 每次添加新依赖时必须有对应的 `use`/`import`。
+- **定期清理：** 移除代码中不再引用的 crate（Cargo.toml）和 npm 包（package.json）。
+- 提交前如果修改了依赖文件，确认所有依赖都有实际用途。
 
 ### Code Style
 

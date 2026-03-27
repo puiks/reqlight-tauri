@@ -70,8 +70,8 @@ describe("highlightJson", () => {
 
   it("distinguishes keys from string values in objects", () => {
     const result = highlightJson('{"key":"value"}');
-    expect(result).toContain('class="json-key">"key"</span>');
-    expect(result).toContain('class="json-string">"value"</span>');
+    expect(result).toContain('class="json-key">&quot;key&quot;</span>');
+    expect(result).toContain('class="json-string">&quot;value&quot;</span>');
   });
 
   it("treats strings in arrays as values, not keys", () => {

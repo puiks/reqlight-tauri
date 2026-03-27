@@ -146,28 +146,8 @@ pub fn interpolate_auth(auth: &AuthConfig, variables: &[KeyValuePair]) -> AuthCo
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::{ApiKeyLocation, AuthConfig, KeyValuePair};
-    use uuid::Uuid;
-
-    fn make_var(key: &str, value: &str) -> KeyValuePair {
-        KeyValuePair {
-            id: Uuid::new_v4(),
-            key: key.to_string(),
-            value: value.to_string(),
-            is_enabled: true,
-            is_secret: false,
-        }
-    }
-
-    fn make_disabled_var(key: &str, value: &str) -> KeyValuePair {
-        KeyValuePair {
-            id: Uuid::new_v4(),
-            key: key.to_string(),
-            value: value.to_string(),
-            is_enabled: false,
-            is_secret: false,
-        }
-    }
+    use crate::models::{ApiKeyLocation, AuthConfig};
+    use crate::test_utils::{make_kv as make_var, make_kv_disabled as make_disabled_var};
 
     #[test]
     fn interpolate_simple_variable() {
@@ -229,20 +209,8 @@ mod tests {
     #[test]
     fn interpolate_request_replaces_all_parts() {
         let vars = vec![make_var("host", "api.test"), make_var("token", "abc123")];
-        let headers = vec![KeyValuePair {
-            id: Uuid::new_v4(),
-            key: "Authorization".to_string(),
-            value: "Bearer {{token}}".to_string(),
-            is_enabled: true,
-            is_secret: false,
-        }];
-        let params = vec![KeyValuePair {
-            id: Uuid::new_v4(),
-            key: "q".to_string(),
-            value: "{{host}}".to_string(),
-            is_enabled: true,
-            is_secret: false,
-        }];
+        let headers = vec![make_var("Authorization", "Bearer {{token}}")];
+        let params = vec![make_var("q", "{{host}}")];
         let body = RequestBody::Json(r#"{"host":"{{host}}"}"#.to_string());
 
         let (url, new_headers, new_params, new_body) =

@@ -2,14 +2,8 @@
  * Simple XML/HTML syntax highlighter.
  * Returns HTML with span classes for styling.
  */
+import { escapeHtml } from "./html";
 
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
 
 export function highlightXml(xml: string): string {
   // Regex-based tokenizer for XML/HTML

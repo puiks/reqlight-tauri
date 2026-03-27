@@ -1,3 +1,5 @@
+import { escapeHtml } from "./html";
+
 export interface SearchMatch {
   start: number;
   end: number;
@@ -26,16 +28,6 @@ export function findMatches(
   return matches;
 }
 
-/**
- * Escape HTML special characters to prevent XSS when inserting into innerHTML.
- */
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
 
 /**
  * Highlight matches in plain text by wrapping them with <mark> tags.

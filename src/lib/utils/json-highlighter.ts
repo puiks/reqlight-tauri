@@ -2,6 +2,7 @@
  *  Ported from Swift's JSONHighlighter — tokenizes JSON and wraps
  *  each token in a <span class="json-*"> for CSS styling.
  */
+import { escapeHtml } from "./html";
 
 type TokenType =
   | "key"
@@ -161,12 +162,6 @@ function isInObjectContext(tokens: Token[]): boolean {
   return true;
 }
 
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
-}
 
 /** Try to format JSON with 2-space indent. Returns original on failure. */
 export function formatJson(input: string): string {

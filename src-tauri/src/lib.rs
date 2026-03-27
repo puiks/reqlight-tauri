@@ -1,6 +1,8 @@
 mod commands;
 mod models;
 mod services;
+#[cfg(test)]
+mod test_utils;
 
 use std::sync::Arc;
 
@@ -20,7 +22,6 @@ pub fn run() {
         .expect("Failed to create HTTP client");
 
     tauri::Builder::default()
-        .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(SharedHttpClient(Arc::new(http_client)))
         .manage(http::RequestCanceller(Arc::new(Notify::new())))
         .manage(WsManager::new())

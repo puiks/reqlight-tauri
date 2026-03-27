@@ -155,20 +155,9 @@ fn shell_escape(s: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::{
-        ApiKeyLocation, AuthConfig, HttpMethod, KeyValuePair, RequestBody, SavedRequest,
-    };
+    use crate::models::{ApiKeyLocation, AuthConfig, HttpMethod, RequestBody, SavedRequest};
+    use crate::test_utils::make_kv;
     use uuid::Uuid;
-
-    fn make_kv(key: &str, value: &str) -> KeyValuePair {
-        KeyValuePair {
-            id: Uuid::new_v4(),
-            key: key.to_string(),
-            value: value.to_string(),
-            is_enabled: true,
-            is_secret: false,
-        }
-    }
 
     fn base_request() -> SavedRequest {
         SavedRequest {
