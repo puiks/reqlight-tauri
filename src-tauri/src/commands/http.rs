@@ -10,6 +10,8 @@ use crate::services::{http_client, interpolator};
 /// any in-flight request will be aborted.
 pub struct RequestCanceller(pub Arc<Notify>);
 
+/// IPC: Execute an HTTP request with optional environment variable interpolation.
+/// Supports cancellation via the shared `RequestCanceller` signal.
 #[tauri::command]
 pub async fn send_request(
     method: HttpMethod,
@@ -43,6 +45,7 @@ pub async fn send_request(
     }
 }
 
+/// IPC: Cancel any in-flight HTTP request by notifying the cancellation signal.
 #[tauri::command]
 pub async fn cancel_request(canceller: State<'_, RequestCanceller>) -> Result<(), String> {
     canceller.0.notify_waiters();

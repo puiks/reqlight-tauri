@@ -63,9 +63,11 @@ src-tauri/src/                # Rust Backend
 
 - **所有新功能必须先写测试，再写实现（TDD）。**
 - Rust 测试放在各模块文件底部的 `#[cfg(test)] mod tests {}` 中。
-- 前端测试使用 vitest（如已配置），测试文件与源文件同目录，命名 `*.test.ts`。
-- 提交前必须确保 `cargo test` 和 `pnpm check` 全部通过。
-- 最低覆盖范围：所有 `services/` 模块必须有单元测试。
+- 前端测试使用 vitest + jsdom，测试文件与源文件同目录，命名 `*.test.ts`。
+- 提交前必须确保 `cargo test`、`pnpm test` 和 `pnpm check` 全部通过。
+- **Rust 最低覆盖范围**：所有 `services/` 中包含纯逻辑的模块必须有单元测试。
+- **前端最低覆盖范围**：所有 `lib/utils/` 模块必须有单元测试。新增工具函数时必须同步新增对应的 `.test.ts` 文件。
+- 前端组件测试（可选）使用 `@testing-library/svelte`，重点覆盖含复杂交互逻辑的组件。
 
 ### File Organization
 
@@ -140,6 +142,9 @@ src-tauri/src/                # Rust Backend
 pnpm dev              # Start dev (Vite + Tauri)
 pnpm build            # Production frontend build
 pnpm check            # svelte-check + TypeScript
+pnpm test             # Run frontend unit tests (vitest)
+pnpm test:watch       # Watch mode for frontend tests
+pnpm test:coverage    # Frontend tests with coverage report
 pnpm tauri dev        # Full Tauri dev mode
 pnpm tauri build      # Production Tauri build
 
