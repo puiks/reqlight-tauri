@@ -1,3 +1,4 @@
+pub mod collection_io;
 pub mod curl;
 pub mod http;
 pub mod keychain;

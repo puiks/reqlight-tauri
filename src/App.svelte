@@ -10,9 +10,11 @@
   import ErrorFallback from "./components/shared/ErrorFallback.svelte";
   import EnvironmentEditor from "./components/environment/EnvironmentEditor.svelte";
   import CurlImportModal from "./components/toolbar/CurlImportModal.svelte";
+  import CollectionIOModal from "./components/toolbar/CollectionIOModal.svelte";
 
   let showEnvEditor = $state(false);
   let showCurlImport = $state(false);
+  let showCollectionIO = $state(false);
 
   function handleBoundaryError(error: unknown) {
     handleError(error, "boundary", { silent: true });
@@ -103,6 +105,7 @@
   <Toolbar
     onopenenvs={() => (showEnvEditor = true)}
     onimportcurl={() => (showCurlImport = true)}
+    oncollectionio={() => (showCollectionIO = true)}
   />
   <svelte:boundary onerror={handleBoundaryError}>
     <MainLayout />
@@ -118,6 +121,10 @@
 
   {#if showCurlImport}
     <CurlImportModal onclose={() => (showCurlImport = false)} />
+  {/if}
+
+  {#if showCollectionIO}
+    <CollectionIOModal onclose={() => (showCollectionIO = false)} />
   {/if}
 </div>
 

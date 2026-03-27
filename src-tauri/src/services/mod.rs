@@ -1,3 +1,4 @@
+pub mod collection_io;
 pub mod curl_exporter;
 pub mod curl_parser;
 pub mod http_client;

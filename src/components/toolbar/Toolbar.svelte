@@ -5,9 +5,11 @@
   let {
     onopenenvs,
     onimportcurl,
+    oncollectionio,
   }: {
     onopenenvs: () => void;
     onimportcurl: () => void;
+    oncollectionio: () => void;
   } = $props();
 
   function toggleSidebar() {
@@ -50,6 +52,9 @@
     <EnvironmentPicker onmanage={onopenenvs} />
     <button class="icon-btn" onclick={onimportcurl} title="Import cURL">
       ⤓
+    </button>
+    <button class="icon-btn" onclick={oncollectionio} title="Import/Export Collections">
+      ⇄
     </button>
     <button class="icon-btn" onclick={toggleTheme} title="Toggle Theme">
       {isDark ? '☀' : '☾'}
