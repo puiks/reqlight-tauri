@@ -14,6 +14,7 @@ const MAX_RESPONSE_BODY_BYTES: usize = 5 * 1024 * 1024;
 /// Execute an HTTP request and return a ResponseRecord.
 /// Accepts a shared `reqwest::Client` (with cookie_store enabled) so that
 /// cookies persist across requests within the same session.
+#[allow(clippy::too_many_arguments)]
 pub async fn execute(
     client: &reqwest::Client,
     method: &HttpMethod,
@@ -23,6 +24,7 @@ pub async fn execute(
     body: &RequestBody,
     auth: &AuthConfig,
     timeout_secs: Option<u64>,
+    follow_redirects: Option<bool>,
 ) -> Result<ResponseRecord, String> {
     // Build URL with query params
     let mut parsed_url = reqwest::Url::parse(url).map_err(|e| format!("Invalid URL: {e}"))?;
@@ -96,14 +98,29 @@ pub async fn execute(
         _ => {}
     }
 
+    // If redirects are disabled, build a temporary client with no-redirect policy.
+    // reqwest::Client is cheap to construct and redirect policy is per-client.
+    let no_redirect_client;
+    let effective_client = if follow_redirects == Some(false) {
+        no_redirect_client = reqwest::Client::builder()
+            .cookie_store(true)
+            .redirect(reqwest::redirect::Policy::none())
+            .build()
+            .map_err(|e| format!("Failed to create HTTP client: {e}"))?;
+        &no_redirect_client
+    } else {
+        client
+    };
+
     // Build request AFTER auth (ApiKey::Query may modify parsed_url)
-    let mut request = client
+    let mut request = effective_client
         .request(reqwest_method, parsed_url)
         .timeout(Duration::from_secs(
             timeout_secs.unwrap_or(DEFAULT_TIMEOUT_SECS),
         ));
 
     // Set body and auto-set Content-Type if not specified
+    let mut is_multipart = false;
     match body {
         RequestBody::Json(text) => {
             if !header_map.contains_key(reqwest::header::CONTENT_TYPE) {
@@ -138,10 +155,38 @@ pub async fn execute(
         RequestBody::RawText(text) => {
             request = request.body(text.clone());
         }
+        RequestBody::Multipart(fields) => {
+            is_multipart = true;
+            let mut form = reqwest::multipart::Form::new();
+            for field in fields.iter().filter(|f| f.is_enabled && !f.name.is_empty()) {
+                if let Some(ref path) = field.file_path {
+                    let file_bytes = tokio::fs::read(path)
+                        .await
+                        .map_err(|e| format!("Failed to read file {path}: {e}"))?;
+                    let file_name = std::path::Path::new(path)
+                        .file_name()
+                        .map(|n| n.to_string_lossy().to_string())
+                        .unwrap_or_default();
+                    let part = reqwest::multipart::Part::bytes(file_bytes).file_name(file_name);
+                    form = form.part(field.name.clone(), part);
+                } else {
+                    form = form.text(field.name.clone(), field.value.clone());
+                }
+            }
+            // multipart sets its own Content-Type with boundary; don't set headers before
+            request = request.multipart(form);
+        }
         RequestBody::None => {}
     }
 
-    request = request.headers(header_map);
+    // For multipart, headers must be set AFTER .multipart() to avoid overwriting Content-Type
+    if !is_multipart {
+        request = request.headers(header_map);
+    } else {
+        // Add headers except Content-Type (multipart sets its own)
+        header_map.remove(reqwest::header::CONTENT_TYPE);
+        request = request.headers(header_map);
+    }
 
     // Execute with timing
     let start = Instant::now();
@@ -193,6 +238,7 @@ pub async fn execute(
         body_size,
         is_json,
         is_truncated,
+        content_type,
     })
 }
 
@@ -238,6 +284,7 @@ mod tests {
             &RequestBody::None,
             &AuthConfig::None,
             Some(5),
+            None,
         )
         .await
         .unwrap();
@@ -266,6 +313,7 @@ mod tests {
             &RequestBody::Json(r#"{"key":"val"}"#.to_string()),
             &AuthConfig::None,
             Some(5),
+            None,
         )
         .await
         .unwrap();
@@ -293,6 +341,7 @@ mod tests {
             &RequestBody::None,
             &AuthConfig::None,
             Some(5),
+            None,
         )
         .await
         .unwrap();
@@ -319,6 +368,7 @@ mod tests {
             &RequestBody::None,
             &AuthConfig::None,
             Some(5),
+            None,
         )
         .await
         .unwrap();
@@ -347,6 +397,7 @@ mod tests {
                 token: "my-token".to_string(),
             },
             Some(5),
+            None,
         )
         .await
         .unwrap();
@@ -377,6 +428,7 @@ mod tests {
                 password: "pass".to_string(),
             },
             Some(5),
+            None,
         )
         .await
         .unwrap();
@@ -405,6 +457,7 @@ mod tests {
                 token: "should-not-appear".to_string(),
             },
             Some(5),
+            None,
         )
         .await
         .unwrap();
@@ -435,6 +488,7 @@ mod tests {
                 location: ApiKeyLocation::Header,
             },
             Some(5),
+            None,
         )
         .await
         .unwrap();
@@ -453,6 +507,7 @@ mod tests {
             &RequestBody::None,
             &AuthConfig::None,
             Some(5),
+            None,
         )
         .await;
 
@@ -480,6 +535,7 @@ mod tests {
             &RequestBody::None,
             &AuthConfig::None,
             Some(5),
+            None,
         )
         .await
         .unwrap();
@@ -510,6 +566,7 @@ mod tests {
             &RequestBody::FormData(pairs),
             &AuthConfig::None,
             Some(5),
+            None,
         )
         .await
         .unwrap();
@@ -536,6 +593,7 @@ mod tests {
             &RequestBody::RawText("plain text body".to_string()),
             &AuthConfig::None,
             Some(5),
+            None,
         )
         .await
         .unwrap();
@@ -565,6 +623,7 @@ mod tests {
             &RequestBody::None,
             &AuthConfig::None,
             Some(30),
+            None,
         )
         .await
         .unwrap();
@@ -598,6 +657,7 @@ mod tests {
             &RequestBody::None,
             &AuthConfig::None,
             Some(1),
+            None,
         )
         .await;
 
@@ -638,6 +698,7 @@ mod tests {
                 location: ApiKeyLocation::Query,
             },
             Some(5),
+            None,
         )
         .await
         .unwrap();
@@ -678,6 +739,7 @@ mod tests {
             &RequestBody::None,
             &AuthConfig::None,
             Some(5),
+            None,
         )
         .await
         .unwrap();
@@ -706,6 +768,7 @@ mod tests {
             &RequestBody::None,
             &AuthConfig::None,
             Some(5),
+            None,
         )
         .await
         .unwrap();
@@ -735,6 +798,7 @@ mod tests {
                 token: "".to_string(),
             },
             Some(5),
+            None,
         )
         .await
         .unwrap();
@@ -774,6 +838,7 @@ mod tests {
             &RequestBody::None,
             &AuthConfig::None,
             Some(5),
+            None,
         )
         .await
         .unwrap();
@@ -787,11 +852,69 @@ mod tests {
             &RequestBody::None,
             &AuthConfig::None,
             Some(5),
+            None,
         )
         .await
         .unwrap();
 
         mock_set.assert_async().await;
         mock_check.assert_async().await;
+    }
+
+    #[tokio::test]
+    async fn follow_redirects_disabled_returns_302() {
+        let mut server = mockito::Server::new_async().await;
+        let mock = server
+            .mock("GET", "/old")
+            .with_status(302)
+            .with_header("location", "/new")
+            .create_async()
+            .await;
+
+        let result = execute(
+            &test_client(),
+            &HttpMethod::Get,
+            &format!("{}/old", server.url()),
+            &[],
+            &[],
+            &RequestBody::None,
+            &AuthConfig::None,
+            Some(5),
+            Some(false),
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(result.status_code, 302);
+        mock.assert_async().await;
+    }
+
+    #[tokio::test]
+    async fn content_type_returned_in_response() {
+        let mut server = mockito::Server::new_async().await;
+        let mock = server
+            .mock("GET", "/")
+            .with_header("content-type", "text/html; charset=utf-8")
+            .with_body("<h1>hi</h1>")
+            .with_status(200)
+            .create_async()
+            .await;
+
+        let result = execute(
+            &test_client(),
+            &HttpMethod::Get,
+            &server.url(),
+            &[],
+            &[],
+            &RequestBody::None,
+            &AuthConfig::None,
+            Some(5),
+            None,
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(result.content_type, "text/html; charset=utf-8");
+        mock.assert_async().await;
     }
 }

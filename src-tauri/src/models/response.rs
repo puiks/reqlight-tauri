@@ -13,6 +13,9 @@ pub struct ResponseRecord {
     pub is_json: bool,
     #[serde(default)]
     pub is_truncated: bool,
+    /// Raw content-type header value (e.g. "application/json", "text/html; charset=utf-8")
+    #[serde(default)]
+    pub content_type: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

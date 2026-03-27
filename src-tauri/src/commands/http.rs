@@ -25,6 +25,7 @@ pub async fn send_request(
     body: RequestBody,
     #[allow(unused_mut)] mut auth: AuthConfig,
     timeout_secs: Option<u64>,
+    follow_redirects: Option<bool>,
     environment: Option<RequestEnvironment>,
     http_client_state: State<'_, SharedHttpClient>,
     canceller: State<'_, RequestCanceller>,
@@ -54,6 +55,7 @@ pub async fn send_request(
             &final_body,
             &final_auth,
             timeout_secs,
+            follow_redirects,
         ) => result,
         _ = cancel.notified() => Err("Request cancelled".to_string()),
     }
