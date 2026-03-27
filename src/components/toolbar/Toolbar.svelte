@@ -4,12 +4,8 @@
 
   let {
     onopenenvs,
-    onimportcurl,
-    oncollectionio,
   }: {
     onopenenvs: () => void;
-    onimportcurl: () => void;
-    oncollectionio: () => void;
   } = $props();
 
   function toggleSidebar() {
@@ -50,12 +46,6 @@
 
   <div class="right">
     <EnvironmentPicker onmanage={onopenenvs} />
-    <button class="icon-btn" onclick={onimportcurl} title="Import cURL">
-      ⤓
-    </button>
-    <button class="icon-btn" onclick={oncollectionio} title="Import/Export Collections">
-      ⇄
-    </button>
     <button class="icon-btn" onclick={toggleTheme} title="Toggle Theme">
       {isDark ? '☀' : '☾'}
     </button>
@@ -90,7 +80,12 @@
   }
   .icon-btn {
     font-size: var(--fs-callout);
-    padding: 2px var(--sp-xs);
+    padding: var(--sp-xs) var(--sp-sm);
     color: var(--text-secondary);
+  }
+  .icon-btn:hover {
+    color: var(--text-primary);
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-sm);
   }
 </style>

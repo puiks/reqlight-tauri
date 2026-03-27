@@ -4,8 +4,16 @@
   import RequestEditor from "../editor/RequestEditor.svelte";
   import ResponseView from "../response/ResponseView.svelte";
 
+  let {
+    onimportcurl,
+    oncollectionio,
+  }: {
+    onimportcurl: () => void;
+    oncollectionio: () => void;
+  } = $props();
+
   let sidebarWidth = $state(220);
-  let editorRatio = $state(0.5);
+  let editorRatio = $state(0.7);
   let isDraggingSidebar = $state(false);
   let isDraggingSplit = $state(false);
   let containerEl: HTMLDivElement;
@@ -49,14 +57,14 @@
 >
   {#if appStore.sidebarVisible}
     <div class="sidebar-pane" style="width: {sidebarWidth}px">
-      <Sidebar />
+      <Sidebar {oncollectionio} />
     </div>
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div class="drag-handle" onmousedown={startSidebarDrag}></div>
   {/if}
 
   <div class="editor-pane" style="flex: {editorRatio}">
-    <RequestEditor />
+    <RequestEditor {onimportcurl} />
   </div>
 
   <!-- svelte-ignore a11y_no_static_element_interactions -->
