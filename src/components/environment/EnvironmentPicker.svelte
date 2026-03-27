@@ -19,7 +19,7 @@
     {/each}
   </select>
   <button class="manage-btn" onclick={onmanage} title="Manage Environments (⌘E)">
-    ⚙
+    Manage
   </button>
 </div>
 
@@ -39,8 +39,14 @@
     cursor: pointer;
   }
   .manage-btn {
-    font-size: var(--fs-body);
+    font-size: var(--fs-small);
     color: var(--text-secondary);
-    padding: 2px var(--sp-xs);
+    padding: var(--sp-xs) var(--sp-sm);
+    border-radius: var(--radius-sm);
+    white-space: nowrap;
+  }
+  .manage-btn:hover {
+    color: var(--text-primary);
+    background: var(--bg-tertiary);
   }
 </style>

@@ -14,8 +14,15 @@
     { value: "query", label: "Query Param" },
   ];
 
+  let showToken = $state(false);
+  let showPassword = $state(false);
+  let showApiKeyValue = $state(false);
+
   function onAuthTypeChange(e: Event) {
     editorStore.authType = (e.target as HTMLSelectElement).value as AuthType;
+    showToken = false;
+    showPassword = false;
+    showApiKeyValue = false;
     editorStore.markDirty();
   }
 </script>
@@ -33,14 +40,21 @@
   {#if editorStore.authType === "bearerToken"}
     <div class="auth-fields">
       <label class="label" for="bearer-token">Token</label>
-      <input
-        id="bearer-token"
-        type="password"
-        class="input"
-        placeholder="Enter bearer token"
-        bind:value={editorStore.bearerToken}
-        oninput={() => editorStore.markDirty()}
-      />
+      <div class="secret-field">
+        <input
+          id="bearer-token"
+          type={showToken ? "text" : "password"}
+          class="input"
+          placeholder="Enter bearer token"
+          bind:value={editorStore.bearerToken}
+          oninput={() => editorStore.markDirty()}
+        />
+        <button
+          class="eye-btn"
+          title={showToken ? "Hide" : "Show"}
+          onclick={() => (showToken = !showToken)}
+        >{showToken ? "◉" : "○"}</button>
+      </div>
     </div>
   {:else if editorStore.authType === "basicAuth"}
     <div class="auth-fields">
@@ -54,14 +68,21 @@
         oninput={() => editorStore.markDirty()}
       />
       <label class="label" for="basic-pass">Password</label>
-      <input
-        id="basic-pass"
-        type="password"
-        class="input"
-        placeholder="Password"
-        bind:value={editorStore.basicPassword}
-        oninput={() => editorStore.markDirty()}
-      />
+      <div class="secret-field">
+        <input
+          id="basic-pass"
+          type={showPassword ? "text" : "password"}
+          class="input"
+          placeholder="Password"
+          bind:value={editorStore.basicPassword}
+          oninput={() => editorStore.markDirty()}
+        />
+        <button
+          class="eye-btn"
+          title={showPassword ? "Hide" : "Show"}
+          onclick={() => (showPassword = !showPassword)}
+        >{showPassword ? "◉" : "○"}</button>
+      </div>
     </div>
   {:else if editorStore.authType === "apiKey"}
     <div class="auth-fields">
@@ -75,14 +96,21 @@
         oninput={() => editorStore.markDirty()}
       />
       <label class="label" for="apikey-value">Value</label>
-      <input
-        id="apikey-value"
-        type="password"
-        class="input"
-        placeholder="API key value"
-        bind:value={editorStore.apiKeyValue}
-        oninput={() => editorStore.markDirty()}
-      />
+      <div class="secret-field">
+        <input
+          id="apikey-value"
+          type={showApiKeyValue ? "text" : "password"}
+          class="input"
+          placeholder="API key value"
+          bind:value={editorStore.apiKeyValue}
+          oninput={() => editorStore.markDirty()}
+        />
+        <button
+          class="eye-btn"
+          title={showApiKeyValue ? "Hide" : "Show"}
+          onclick={() => (showApiKeyValue = !showApiKeyValue)}
+        >{showApiKeyValue ? "◉" : "○"}</button>
+      </div>
       <label class="label" for="apikey-loc">Add to</label>
       <select
         id="apikey-loc"
@@ -130,6 +158,24 @@
     width: 100%;
     font-size: var(--fs-small);
     font-family: var(--font-mono);
+  }
+  .secret-field {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-xs);
+  }
+  .secret-field .input {
+    flex: 1;
+  }
+  .eye-btn {
+    font-size: var(--fs-body);
+    color: var(--text-tertiary);
+    padding: var(--sp-xs);
+    flex-shrink: 0;
+    line-height: 1;
+  }
+  .eye-btn:hover {
+    color: var(--text-primary);
   }
   .select {
     font-size: var(--fs-small);

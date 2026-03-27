@@ -47,14 +47,19 @@ class AppStore {
     if (!this.searchQuery.trim()) return this.collections;
     const q = this.searchQuery.toLowerCase();
     return this.collections
-      .map((c) => ({
-        ...c,
-        requests: c.requests.filter(
-          (r) =>
-            r.name.toLowerCase().includes(q) ||
-            r.url.toLowerCase().includes(q),
-        ),
-      }))
+      .map((c) => {
+        const collectionMatches = c.name.toLowerCase().includes(q);
+        return {
+          ...c,
+          requests: collectionMatches
+            ? c.requests
+            : c.requests.filter(
+                (r) =>
+                  r.name.toLowerCase().includes(q) ||
+                  r.url.toLowerCase().includes(q),
+              ),
+        };
+      })
       .filter(
         (c) =>
           c.name.toLowerCase().includes(q) || c.requests.length > 0,

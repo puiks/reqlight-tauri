@@ -160,6 +160,8 @@
             <CollectionItem
               {collection}
               oncontextmenu={(e) => handleCollectionContext(e, collection.id)}
+              ondelete={() => handleDelete("collection", collection.id, collection.name)}
+              ondeleterequest={(id, name) => handleDelete("request", id, name)}
             />
           {/if}
         </div>

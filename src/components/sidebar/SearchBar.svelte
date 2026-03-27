@@ -5,7 +5,7 @@
 <div class="search-bar">
   <input
     type="text"
-    placeholder="Search requests..."
+    placeholder="Search collections & requests..."
     bind:value={appStore.searchQuery}
   />
 </div>

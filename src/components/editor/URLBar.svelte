@@ -16,6 +16,14 @@
 </script>
 
 <div class="url-bar">
+  <button
+    class="import-curl-btn"
+    onclick={onimportcurl}
+    title="Import from cURL"
+  >
+    cURL
+  </button>
+
   <select
     class="method-select"
     bind:value={editorStore.method}
@@ -36,27 +44,6 @@
     onkeydown={handleKeydown}
     class:invalid={!editorStore.isUrlValid}
   />
-
-  <div class="options-group">
-    <div class="timeout-group" title="Request timeout (seconds)">
-      <span class="option-label">Timeout</span>
-      <input
-        type="number"
-        class="timeout-input"
-        min="1"
-        max="300"
-        bind:value={editorStore.timeoutSecs}
-      />
-      <span class="timeout-label">s</span>
-    </div>
-    <button
-      class="import-curl-btn"
-      onclick={onimportcurl}
-      title="Import from cURL"
-    >
-      cURL
-    </button>
-  </div>
 
   {#if editorStore.isLoading}
     <button class="cancel-btn" onclick={() => editorStore.cancel()}>Cancel</button>
@@ -79,6 +66,20 @@
     padding: var(--sp-md);
     border-bottom: 1px solid var(--border-color);
     align-items: center;
+  }
+  .import-curl-btn {
+    font-size: var(--fs-small);
+    font-family: var(--font-mono);
+    padding: var(--sp-xs) var(--sp-sm);
+    color: var(--text-tertiary);
+    border-radius: var(--radius-sm);
+    white-space: nowrap;
+    border: 1px dashed var(--border-color);
+    flex-shrink: 0;
+  }
+  .import-curl-btn:hover {
+    color: var(--text-primary);
+    border-color: var(--text-secondary);
   }
   .method-select {
     font-family: var(--font-mono);
@@ -119,50 +120,5 @@
     font-weight: 600;
     padding: var(--sp-xs) var(--sp-lg);
     border-radius: var(--radius-sm);
-  }
-  .options-group {
-    display: flex;
-    align-items: center;
-    gap: var(--sp-xs);
-  }
-  .timeout-group {
-    display: flex;
-    align-items: center;
-    gap: var(--sp-xs);
-  }
-  .option-label {
-    font-size: var(--fs-small);
-    color: var(--text-tertiary);
-    white-space: nowrap;
-  }
-  .timeout-input {
-    width: 42px;
-    text-align: center;
-    font-family: var(--font-mono);
-    font-size: var(--fs-small);
-    padding: var(--sp-xs) 2px;
-    -moz-appearance: textfield;
-    appearance: textfield;
-  }
-  .timeout-input::-webkit-inner-spin-button,
-  .timeout-input::-webkit-outer-spin-button {
-    -webkit-appearance: none;
-  }
-  .timeout-label {
-    font-size: var(--fs-caption);
-    color: var(--text-tertiary);
-  }
-  .import-curl-btn {
-    font-size: var(--fs-small);
-    font-family: var(--font-mono);
-    padding: var(--sp-xs) var(--sp-sm);
-    color: var(--text-tertiary);
-    border-radius: var(--radius-sm);
-    white-space: nowrap;
-    border: 1px dashed var(--border-color);
-  }
-  .import-curl-btn:hover {
-    color: var(--text-primary);
-    border-color: var(--text-secondary);
   }
 </style>
