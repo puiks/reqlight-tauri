@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::models::{KeyValuePair, RequestBody};
+use crate::models::{AuthConfig, KeyValuePair, RequestBody};
 
 /// Replace all {{var}} occurrences with environment variable values.
 /// Unmatched variables are kept as-is.
@@ -108,10 +108,33 @@ pub fn interpolate_request(
     (new_url, new_headers, new_params, new_body)
 }
 
+/// Interpolate variables in auth configuration fields.
+pub fn interpolate_auth(auth: &AuthConfig, variables: &[KeyValuePair]) -> AuthConfig {
+    match auth {
+        AuthConfig::None => AuthConfig::None,
+        AuthConfig::BearerToken { token } => AuthConfig::BearerToken {
+            token: interpolate(token, variables),
+        },
+        AuthConfig::BasicAuth { username, password } => AuthConfig::BasicAuth {
+            username: interpolate(username, variables),
+            password: interpolate(password, variables),
+        },
+        AuthConfig::ApiKey {
+            key,
+            value,
+            location,
+        } => AuthConfig::ApiKey {
+            key: interpolate(key, variables),
+            value: interpolate(value, variables),
+            location: location.clone(),
+        },
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::KeyValuePair;
+    use crate::models::{ApiKeyLocation, AuthConfig, KeyValuePair};
     use uuid::Uuid;
 
     fn make_var(key: &str, value: &str) -> KeyValuePair {
@@ -220,5 +243,63 @@ mod tests {
             RequestBody::Json(s) => assert_eq!(s, r#"{"host":"api.test"}"#),
             _ => panic!("Expected Json body"),
         }
+    }
+
+    #[test]
+    fn interpolate_auth_none_unchanged() {
+        let vars = vec![make_var("token", "abc")];
+        let result = interpolate_auth(&AuthConfig::None, &vars);
+        assert_eq!(result, AuthConfig::None);
+    }
+
+    #[test]
+    fn interpolate_auth_bearer_token() {
+        let vars = vec![make_var("token", "secret123")];
+        let auth = AuthConfig::BearerToken {
+            token: "{{token}}".to_string(),
+        };
+        let result = interpolate_auth(&auth, &vars);
+        assert_eq!(
+            result,
+            AuthConfig::BearerToken {
+                token: "secret123".to_string()
+            }
+        );
+    }
+
+    #[test]
+    fn interpolate_auth_basic() {
+        let vars = vec![make_var("user", "admin"), make_var("pass", "s3cret")];
+        let auth = AuthConfig::BasicAuth {
+            username: "{{user}}".to_string(),
+            password: "{{pass}}".to_string(),
+        };
+        let result = interpolate_auth(&auth, &vars);
+        assert_eq!(
+            result,
+            AuthConfig::BasicAuth {
+                username: "admin".to_string(),
+                password: "s3cret".to_string()
+            }
+        );
+    }
+
+    #[test]
+    fn interpolate_auth_api_key() {
+        let vars = vec![make_var("key", "my-api-key")];
+        let auth = AuthConfig::ApiKey {
+            key: "X-API-Key".to_string(),
+            value: "{{key}}".to_string(),
+            location: ApiKeyLocation::Header,
+        };
+        let result = interpolate_auth(&auth, &vars);
+        assert_eq!(
+            result,
+            AuthConfig::ApiKey {
+                key: "X-API-Key".to_string(),
+                value: "my-api-key".to_string(),
+                location: ApiKeyLocation::Header,
+            }
+        );
     }
 }

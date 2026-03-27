@@ -1,6 +1,6 @@
-import { invoke } from "@tauri-apps/api/core";
 import type {
   AppState,
+  AuthConfig,
   HttpMethod,
   KeyValuePair,
   RequestBody,
@@ -8,6 +8,41 @@ import type {
   ResponseRecord,
   SavedRequest,
 } from "./types";
+
+// Check if running inside Tauri webview
+const isTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+
+async function invoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
+  if (isTauri) {
+    const { invoke: tauriInvoke } = await import("@tauri-apps/api/core");
+    return tauriInvoke<T>(cmd, args);
+  }
+  // Dev/E2E fallback — return mock data
+  return devFallback(cmd) as T;
+}
+
+function devFallback(cmd: string): unknown {
+  switch (cmd) {
+    case "load_state":
+      return {
+        collections: [],
+        environments: [],
+        activeEnvironmentId: null,
+        lastSelectedCollectionId: null,
+        lastSelectedRequestId: null,
+        history: [],
+      };
+    case "save_state":
+    case "secret_set":
+    case "secret_delete":
+    case "cancel_request":
+      return undefined;
+    case "secret_get":
+      return null;
+    default:
+      return undefined;
+  }
+}
 
 // Persistence
 export async function loadState(): Promise<AppState> {
@@ -25,6 +60,7 @@ export async function sendRequest(params: {
   headers: KeyValuePair[];
   queryParams: KeyValuePair[];
   body: RequestBody;
+  auth: AuthConfig;
   timeoutSecs?: number;
   environment?: RequestEnvironment;
 }): Promise<ResponseRecord> {

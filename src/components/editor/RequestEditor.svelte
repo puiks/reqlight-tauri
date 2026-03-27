@@ -4,6 +4,7 @@
   import EditorTabs from "./EditorTabs.svelte";
   import KeyValueEditor from "./KeyValueEditor.svelte";
   import BodyEditor from "./BodyEditor.svelte";
+  import AuthEditor from "./AuthEditor.svelte";
   import EmptyState from "../shared/EmptyState.svelte";
 </script>
 
@@ -34,6 +35,8 @@
           bind:pairs={editorStore.headers}
           onchange={() => editorStore.markDirty()}
         />
+      {:else if editorStore.activeEditorTab === "auth"}
+        <AuthEditor />
       {:else if editorStore.activeEditorTab === "body"}
         <BodyEditor />
       {/if}

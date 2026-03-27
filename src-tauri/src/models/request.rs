@@ -177,6 +177,8 @@ pub struct SavedRequest {
     #[serde(default)]
     pub body: RequestBody,
     #[serde(default)]
+    pub auth: super::auth::AuthConfig,
+    #[serde(default)]
     pub sort_order: i32,
     #[serde(default = "now_iso8601")]
     pub created_at: String,
@@ -202,6 +204,7 @@ impl Default for SavedRequest {
             query_params: vec![],
             headers: vec![],
             body: RequestBody::default(),
+            auth: super::auth::AuthConfig::default(),
             sort_order: 0,
             created_at: now_iso8601(),
             updated_at: now_iso8601(),

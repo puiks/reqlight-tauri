@@ -1,10 +1,15 @@
 import { sendRequest, cancelRequest } from "../commands";
 import {
+  buildAuthConfig,
   buildRequestBody,
+  createEmptyAuth,
   createEmptyPair,
+  getAuthType,
   getBodyContent,
   getBodyType,
   getFormPairs,
+  type ApiKeyLocation,
+  type AuthType,
   type BodyType,
   type EditorTab,
   type HttpMethod,
@@ -30,6 +35,15 @@ class EditorStore {
   jsonBody = $state("");
   rawBody = $state("");
   formPairs = $state<KeyValuePair[]>([createEmptyPair()]);
+
+  // Auth fields
+  authType = $state<AuthType>("none");
+  bearerToken = $state("");
+  basicUsername = $state("");
+  basicPassword = $state("");
+  apiKeyKey = $state("");
+  apiKeyValue = $state("");
+  apiKeyLocation = $state<ApiKeyLocation>("header");
 
   // UI state
   activeEditorTab = $state<EditorTab>("params");
@@ -77,9 +91,30 @@ class EditorStore {
     this.formPairs = getFormPairs(request.body).length
       ? [...getFormPairs(request.body)]
       : [createEmptyPair()];
+    this.loadAuth(request.auth);
     this.response = null;
     this.errorMessage = null;
     this.isDirty = false;
+  }
+
+  private loadAuth(auth?: import("../types").AuthConfig) {
+    this.authType = getAuthType(auth);
+    this.bearerToken = "";
+    this.basicUsername = "";
+    this.basicPassword = "";
+    this.apiKeyKey = "";
+    this.apiKeyValue = "";
+    this.apiKeyLocation = "header";
+    if (auth && "bearerToken" in auth) {
+      this.bearerToken = auth.bearerToken._0.token;
+    } else if (auth && "basicAuth" in auth) {
+      this.basicUsername = auth.basicAuth._0.username;
+      this.basicPassword = auth.basicAuth._0.password;
+    } else if (auth && "apiKey" in auth) {
+      this.apiKeyKey = auth.apiKey._0.key;
+      this.apiKeyValue = auth.apiKey._0.value;
+      this.apiKeyLocation = auth.apiKey._0.location;
+    }
   }
 
   // Build a SavedRequest from current editor state
@@ -97,6 +132,12 @@ class EditorStore {
         this.jsonBody,
         this.rawBody,
         this.formPairs.filter((p) => !p.key && !p.value ? false : true),
+      ),
+      auth: buildAuthConfig(
+        this.authType,
+        { token: this.bearerToken },
+        { username: this.basicUsername, password: this.basicPassword },
+        { key: this.apiKeyKey, value: this.apiKeyValue, location: this.apiKeyLocation },
       ),
       sortOrder: 0,
       createdAt: new Date().toISOString(),
@@ -134,12 +175,19 @@ class EditorStore {
         this.rawBody,
         this.formPairs,
       );
+      const auth = buildAuthConfig(
+        this.authType,
+        { token: this.bearerToken },
+        { username: this.basicUsername, password: this.basicPassword },
+        { key: this.apiKeyKey, value: this.apiKeyValue, location: this.apiKeyLocation },
+      );
       const result = await sendRequest({
         method: this.method,
         url: this.url,
         headers: this.headers,
         queryParams: this.queryParams,
         body,
+        auth,
         timeoutSecs: this.timeoutSecs,
         environment: environmentStore.activeEnvironment,
       });
@@ -184,6 +232,13 @@ class EditorStore {
     this.jsonBody = "";
     this.rawBody = "";
     this.formPairs = [createEmptyPair()];
+    this.authType = "none";
+    this.bearerToken = "";
+    this.basicUsername = "";
+    this.basicPassword = "";
+    this.apiKeyKey = "";
+    this.apiKeyValue = "";
+    this.apiKeyLocation = "header";
     this.response = null;
     this.errorMessage = null;
     this.isDirty = false;

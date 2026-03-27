@@ -1,8 +1,11 @@
 use std::time::{Duration, Instant};
 
+use base64::{engine::general_purpose::STANDARD, Engine};
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 
-use crate::models::{HeaderPair, HttpMethod, KeyValuePair, RequestBody, ResponseRecord};
+use crate::models::{
+    ApiKeyLocation, AuthConfig, HeaderPair, HttpMethod, KeyValuePair, RequestBody, ResponseRecord,
+};
 
 const DEFAULT_TIMEOUT_SECS: u64 = 30;
 /// Max response body size we'll read into memory (5 MB)
@@ -15,6 +18,7 @@ pub async fn execute(
     headers: &[KeyValuePair],
     query_params: &[KeyValuePair],
     body: &RequestBody,
+    auth: &AuthConfig,
     timeout_secs: Option<u64>,
 ) -> Result<ResponseRecord, String> {
     // Build URL with query params
@@ -48,7 +52,7 @@ pub async fn execute(
         HttpMethod::Delete => reqwest::Method::DELETE,
     };
 
-    let mut request = client.request(reqwest_method, parsed_url);
+    let mut request = client.request(reqwest_method, parsed_url.clone());
 
     // Set headers
     let mut header_map = HeaderMap::new();
@@ -59,6 +63,43 @@ pub async fn execute(
         ) {
             header_map.insert(name, value);
         }
+    }
+
+    // Apply auth configuration (does not override manually set Authorization header)
+    match auth {
+        AuthConfig::BearerToken { token } if !token.is_empty() => {
+            if !header_map.contains_key(reqwest::header::AUTHORIZATION) {
+                if let Ok(val) = HeaderValue::from_str(&format!("Bearer {token}")) {
+                    header_map.insert(reqwest::header::AUTHORIZATION, val);
+                }
+            }
+        }
+        AuthConfig::BasicAuth { username, password } => {
+            if !header_map.contains_key(reqwest::header::AUTHORIZATION) {
+                let encoded = STANDARD.encode(format!("{username}:{password}"));
+                if let Ok(val) = HeaderValue::from_str(&format!("Basic {encoded}")) {
+                    header_map.insert(reqwest::header::AUTHORIZATION, val);
+                }
+            }
+        }
+        AuthConfig::ApiKey {
+            key,
+            value,
+            location,
+        } if !key.is_empty() => match location {
+            ApiKeyLocation::Header => {
+                if let (Ok(name), Ok(val)) = (
+                    HeaderName::from_bytes(key.as_bytes()),
+                    HeaderValue::from_str(value),
+                ) {
+                    header_map.insert(name, val);
+                }
+            }
+            ApiKeyLocation::Query => {
+                parsed_url.query_pairs_mut().append_pair(key, value);
+            }
+        },
+        _ => {}
     }
 
     // Set body and auto-set Content-Type if not specified
@@ -152,4 +193,280 @@ pub async fn execute(
         is_json,
         is_truncated,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::{AuthConfig, KeyValuePair};
+    use uuid::Uuid;
+
+    fn make_kv(key: &str, value: &str) -> KeyValuePair {
+        KeyValuePair {
+            id: Uuid::new_v4(),
+            key: key.to_string(),
+            value: value.to_string(),
+            is_enabled: true,
+            is_secret: false,
+        }
+    }
+
+    #[tokio::test]
+    async fn get_request_returns_200() {
+        let mut server = mockito::Server::new_async().await;
+        let mock = server
+            .mock("GET", "/test")
+            .with_status(200)
+            .with_body("ok")
+            .create_async()
+            .await;
+
+        let result = execute(
+            &HttpMethod::Get,
+            &format!("{}/test", server.url()),
+            &[],
+            &[],
+            &RequestBody::None,
+            &AuthConfig::None,
+            Some(5),
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(result.status_code, 200);
+        assert_eq!(result.body_string.as_deref(), Some("ok"));
+        mock.assert_async().await;
+    }
+
+    #[tokio::test]
+    async fn post_json_auto_content_type() {
+        let mut server = mockito::Server::new_async().await;
+        let mock = server
+            .mock("POST", "/api")
+            .match_header("content-type", "application/json")
+            .with_status(201)
+            .create_async()
+            .await;
+
+        let result = execute(
+            &HttpMethod::Post,
+            &format!("{}/api", server.url()),
+            &[],
+            &[],
+            &RequestBody::Json(r#"{"key":"val"}"#.to_string()),
+            &AuthConfig::None,
+            Some(5),
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(result.status_code, 201);
+        mock.assert_async().await;
+    }
+
+    #[tokio::test]
+    async fn query_params_appended_to_url() {
+        let mut server = mockito::Server::new_async().await;
+        let mock = server
+            .mock("GET", "/search")
+            .match_query(mockito::Matcher::UrlEncoded("q".into(), "hello".into()))
+            .with_status(200)
+            .create_async()
+            .await;
+
+        execute(
+            &HttpMethod::Get,
+            &format!("{}/search", server.url()),
+            &[],
+            &[make_kv("q", "hello")],
+            &RequestBody::None,
+            &AuthConfig::None,
+            Some(5),
+        )
+        .await
+        .unwrap();
+
+        mock.assert_async().await;
+    }
+
+    #[tokio::test]
+    async fn custom_headers_sent() {
+        let mut server = mockito::Server::new_async().await;
+        let mock = server
+            .mock("GET", "/")
+            .match_header("x-custom", "value")
+            .with_status(200)
+            .create_async()
+            .await;
+
+        execute(
+            &HttpMethod::Get,
+            &server.url(),
+            &[make_kv("X-Custom", "value")],
+            &[],
+            &RequestBody::None,
+            &AuthConfig::None,
+            Some(5),
+        )
+        .await
+        .unwrap();
+
+        mock.assert_async().await;
+    }
+
+    #[tokio::test]
+    async fn bearer_auth_injects_header() {
+        let mut server = mockito::Server::new_async().await;
+        let mock = server
+            .mock("GET", "/")
+            .match_header("authorization", "Bearer my-token")
+            .with_status(200)
+            .create_async()
+            .await;
+
+        execute(
+            &HttpMethod::Get,
+            &server.url(),
+            &[],
+            &[],
+            &RequestBody::None,
+            &AuthConfig::BearerToken {
+                token: "my-token".to_string(),
+            },
+            Some(5),
+        )
+        .await
+        .unwrap();
+
+        mock.assert_async().await;
+    }
+
+    #[tokio::test]
+    async fn basic_auth_injects_header() {
+        let mut server = mockito::Server::new_async().await;
+        let expected = format!("Basic {}", STANDARD.encode("user:pass"));
+        let mock = server
+            .mock("GET", "/")
+            .match_header("authorization", expected.as_str())
+            .with_status(200)
+            .create_async()
+            .await;
+
+        execute(
+            &HttpMethod::Get,
+            &server.url(),
+            &[],
+            &[],
+            &RequestBody::None,
+            &AuthConfig::BasicAuth {
+                username: "user".to_string(),
+                password: "pass".to_string(),
+            },
+            Some(5),
+        )
+        .await
+        .unwrap();
+
+        mock.assert_async().await;
+    }
+
+    #[tokio::test]
+    async fn auth_does_not_override_manual_authorization() {
+        let mut server = mockito::Server::new_async().await;
+        let mock = server
+            .mock("GET", "/")
+            .match_header("authorization", "Manual value")
+            .with_status(200)
+            .create_async()
+            .await;
+
+        execute(
+            &HttpMethod::Get,
+            &server.url(),
+            &[make_kv("Authorization", "Manual value")],
+            &[],
+            &RequestBody::None,
+            &AuthConfig::BearerToken {
+                token: "should-not-appear".to_string(),
+            },
+            Some(5),
+        )
+        .await
+        .unwrap();
+
+        mock.assert_async().await;
+    }
+
+    #[tokio::test]
+    async fn api_key_header_auth() {
+        let mut server = mockito::Server::new_async().await;
+        let mock = server
+            .mock("GET", "/")
+            .match_header("x-api-key", "secret")
+            .with_status(200)
+            .create_async()
+            .await;
+
+        execute(
+            &HttpMethod::Get,
+            &server.url(),
+            &[],
+            &[],
+            &RequestBody::None,
+            &AuthConfig::ApiKey {
+                key: "X-API-Key".to_string(),
+                value: "secret".to_string(),
+                location: ApiKeyLocation::Header,
+            },
+            Some(5),
+        )
+        .await
+        .unwrap();
+
+        mock.assert_async().await;
+    }
+
+    #[tokio::test]
+    async fn invalid_url_returns_error() {
+        let result = execute(
+            &HttpMethod::Get,
+            "not-a-url",
+            &[],
+            &[],
+            &RequestBody::None,
+            &AuthConfig::None,
+            Some(5),
+        )
+        .await;
+
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Invalid URL"));
+    }
+
+    #[tokio::test]
+    async fn json_response_detected() {
+        let mut server = mockito::Server::new_async().await;
+        let mock = server
+            .mock("GET", "/")
+            .with_header("content-type", "application/json")
+            .with_body(r#"{"ok":true}"#)
+            .with_status(200)
+            .create_async()
+            .await;
+
+        let result = execute(
+            &HttpMethod::Get,
+            &server.url(),
+            &[],
+            &[],
+            &RequestBody::None,
+            &AuthConfig::None,
+            Some(5),
+        )
+        .await
+        .unwrap();
+
+        assert!(result.is_json);
+        mock.assert_async().await;
+    }
 }

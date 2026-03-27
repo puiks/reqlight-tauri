@@ -1,4 +1,4 @@
-use crate::models::{HttpMethod, KeyValuePair, RequestBody, SavedRequest};
+use crate::models::{AuthConfig, HttpMethod, KeyValuePair, RequestBody, SavedRequest};
 
 /// Parse a cURL command string into a SavedRequest.
 /// 1:1 port of Swift's CurlParser.
@@ -40,14 +40,33 @@ pub fn parse(curl: &str) -> Result<SavedRequest, String> {
                 i += 1;
                 if i < tokens.len() {
                     if let Some((key, value)) = parse_header(&tokens[i]) {
-                        request.headers.push(KeyValuePair {
-                            id: uuid::Uuid::new_v4(),
-                            key,
-                            value,
-                            is_enabled: true,
-                            is_secret: false,
-                        });
+                        // Detect Bearer token from Authorization header
+                        if key.eq_ignore_ascii_case("authorization")
+                            && value.to_lowercase().starts_with("bearer ")
+                        {
+                            let token = value["bearer ".len()..].trim().to_string();
+                            request.auth = AuthConfig::BearerToken { token };
+                        } else {
+                            request.headers.push(KeyValuePair {
+                                id: uuid::Uuid::new_v4(),
+                                key,
+                                value,
+                                is_enabled: true,
+                                is_secret: false,
+                            });
+                        }
                     }
+                }
+            }
+            "-u" | "--user" => {
+                i += 1;
+                if i < tokens.len() {
+                    let cred = &tokens[i];
+                    let (username, password) = match cred.find(':') {
+                        Some(idx) => (cred[..idx].to_string(), cred[idx + 1..].to_string()),
+                        None => (cred.clone(), String::new()),
+                    };
+                    request.auth = AuthConfig::BasicAuth { username, password };
                 }
             }
             "-d" | "--data" | "--data-raw" | "--data-binary" => {
@@ -195,11 +214,14 @@ mod tests {
     #[test]
     fn parse_headers() {
         let req = parse(r#"curl -H "Content-Type: application/json" -H "Authorization: Bearer token" https://example.com"#).unwrap();
-        assert_eq!(req.headers.len(), 2);
+        // Authorization: Bearer is extracted as auth config, not a header
+        assert_eq!(req.headers.len(), 1);
         assert_eq!(req.headers[0].key, "Content-Type");
         assert_eq!(req.headers[0].value, "application/json");
-        assert_eq!(req.headers[1].key, "Authorization");
-        assert_eq!(req.headers[1].value, "Bearer token");
+        match &req.auth {
+            AuthConfig::BearerToken { token } => assert_eq!(token, "token"),
+            _ => panic!("Expected BearerToken auth"),
+        }
     }
 
     #[test]
@@ -304,5 +326,30 @@ mod tests {
             tokens,
             vec!["curl", "-d", r#"hello "world""#, "http://x.com"]
         );
+    }
+
+    #[test]
+    fn parse_basic_auth_flag() {
+        let req = parse("curl -u admin:secret https://example.com").unwrap();
+        match &req.auth {
+            AuthConfig::BasicAuth { username, password } => {
+                assert_eq!(username, "admin");
+                assert_eq!(password, "secret");
+            }
+            _ => panic!("Expected BasicAuth"),
+        }
+    }
+
+    #[test]
+    fn parse_bearer_from_header() {
+        let req = parse(r#"curl -H "Authorization: Bearer my-token" https://example.com"#).unwrap();
+        match &req.auth {
+            AuthConfig::BearerToken { token } => {
+                assert_eq!(token, "my-token");
+            }
+            _ => panic!("Expected BearerToken"),
+        }
+        // Authorization header should NOT be in the headers list
+        assert!(req.headers.iter().all(|h| h.key != "Authorization"));
     }
 }

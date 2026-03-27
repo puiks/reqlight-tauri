@@ -1,23 +1,29 @@
-use crate::models::{HttpMethod, KeyValuePair, RequestBody, RequestEnvironment, SavedRequest};
+use crate::models::{
+    ApiKeyLocation, AuthConfig, HttpMethod, KeyValuePair, RequestBody, RequestEnvironment,
+    SavedRequest,
+};
 use crate::services::interpolator;
 
 /// Export a SavedRequest as a cURL command string.
 /// If an environment is provided, variables are interpolated first.
 pub fn export(request: &SavedRequest, environment: Option<&RequestEnvironment>) -> String {
-    let (url, headers, params, body) = if let Some(env) = environment {
-        interpolator::interpolate_request(
+    let (url, headers, params, body, auth) = if let Some(env) = environment {
+        let (u, h, p, b) = interpolator::interpolate_request(
             &request.url,
             &request.headers,
             &request.query_params,
             &request.body,
             &env.variables,
-        )
+        );
+        let a = interpolator::interpolate_auth(&request.auth, &env.variables);
+        (u, h, p, b, a)
     } else {
         (
             request.url.clone(),
             request.headers.clone(),
             request.query_params.clone(),
             request.body.clone(),
+            request.auth.clone(),
         )
     };
 
@@ -42,6 +48,24 @@ pub fn export(request: &SavedRequest, environment: Option<&RequestEnvironment>) 
         let sep = if url_string.contains('?') { "&" } else { "?" };
         url_string = format!("{url_string}{sep}{qs}");
     }
+
+    // Auth — process before URL is finalized (ApiKey Query appends to URL)
+    match &auth {
+        AuthConfig::ApiKey {
+            key,
+            value,
+            location: ApiKeyLocation::Query,
+        } if !key.is_empty() => {
+            let sep = if url_string.contains('?') { "&" } else { "?" };
+            url_string = format!(
+                "{url_string}{sep}{}={}",
+                percent_encode(key),
+                percent_encode(value)
+            );
+        }
+        _ => {}
+    }
+
     parts.push(format!("'{}'", shell_escape(&url_string)));
 
     // Headers
@@ -50,6 +74,30 @@ pub fn export(request: &SavedRequest, environment: Option<&RequestEnvironment>) 
             "-H '{}'",
             shell_escape(&format!("{}: {}", h.key, h.value))
         ));
+    }
+
+    // Auth headers
+    match &auth {
+        AuthConfig::BearerToken { token } if !token.is_empty() => {
+            parts.push(format!(
+                "-H '{}'",
+                shell_escape(&format!("Authorization: Bearer {token}"))
+            ));
+        }
+        AuthConfig::BasicAuth { username, password } => {
+            parts.push(format!(
+                "-u '{}'",
+                shell_escape(&format!("{username}:{password}"))
+            ));
+        }
+        AuthConfig::ApiKey {
+            key,
+            value,
+            location: ApiKeyLocation::Header,
+        } if !key.is_empty() => {
+            parts.push(format!("-H '{}'", shell_escape(&format!("{key}: {value}"))));
+        }
+        _ => {}
     }
 
     // Body
@@ -90,7 +138,9 @@ fn shell_escape(s: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::{HttpMethod, KeyValuePair, RequestBody, SavedRequest};
+    use crate::models::{
+        ApiKeyLocation, AuthConfig, HttpMethod, KeyValuePair, RequestBody, SavedRequest,
+    };
     use uuid::Uuid;
 
     fn make_kv(key: &str, value: &str) -> KeyValuePair {
@@ -112,6 +162,7 @@ mod tests {
             query_params: vec![],
             headers: vec![],
             body: RequestBody::None,
+            auth: AuthConfig::None,
             sort_order: 0,
             created_at: String::new(),
             updated_at: String::new(),
@@ -224,5 +275,50 @@ mod tests {
         }];
         let result = export(&req, None);
         assert!(!result.contains("skip=true"));
+    }
+
+    #[test]
+    fn export_bearer_token_auth() {
+        let mut req = base_request();
+        req.auth = AuthConfig::BearerToken {
+            token: "my-token".to_string(),
+        };
+        let result = export(&req, None);
+        assert!(result.contains("-H 'Authorization: Bearer my-token'"));
+    }
+
+    #[test]
+    fn export_basic_auth() {
+        let mut req = base_request();
+        req.auth = AuthConfig::BasicAuth {
+            username: "user".to_string(),
+            password: "pass".to_string(),
+        };
+        let result = export(&req, None);
+        assert!(result.contains("-u 'user:pass'"));
+    }
+
+    #[test]
+    fn export_api_key_header_auth() {
+        let mut req = base_request();
+        req.auth = AuthConfig::ApiKey {
+            key: "X-API-Key".to_string(),
+            value: "secret".to_string(),
+            location: ApiKeyLocation::Header,
+        };
+        let result = export(&req, None);
+        assert!(result.contains("-H 'X-API-Key: secret'"));
+    }
+
+    #[test]
+    fn export_api_key_query_auth() {
+        let mut req = base_request();
+        req.auth = AuthConfig::ApiKey {
+            key: "api_key".to_string(),
+            value: "abc123".to_string(),
+            location: ApiKeyLocation::Query,
+        };
+        let result = export(&req, None);
+        assert!(result.contains("api_key=abc123"));
     }
 }

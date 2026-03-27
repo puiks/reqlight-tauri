@@ -5,6 +5,7 @@
   const tabs: { value: EditorTab; label: string }[] = [
     { value: "params", label: "Params" },
     { value: "headers", label: "Headers" },
+    { value: "auth", label: "Auth" },
     { value: "body", label: "Body" },
   ];
 </script>

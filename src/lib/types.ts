@@ -16,6 +16,16 @@ export type RequestBody =
 
 export type BodyType = "none" | "json" | "formData" | "rawText";
 
+// Auth types
+export type AuthType = "none" | "bearerToken" | "basicAuth" | "apiKey";
+export type ApiKeyLocation = "header" | "query";
+
+export type AuthConfig =
+  | { none: Record<string, never> }
+  | { bearerToken: { _0: { token: string } } }
+  | { basicAuth: { _0: { username: string; password: string } } }
+  | { apiKey: { _0: { key: string; value: string; location: ApiKeyLocation } } };
+
 export interface SavedRequest {
   id: string;
   name: string;
@@ -24,6 +34,7 @@ export interface SavedRequest {
   queryParams: KeyValuePair[];
   headers: KeyValuePair[];
   body: RequestBody;
+  auth?: AuthConfig;
   sortOrder: number;
   createdAt: string;
   updatedAt: string;
@@ -78,7 +89,7 @@ export interface AppState {
   history: RequestHistoryEntry[];
 }
 
-export type EditorTab = "params" | "headers" | "body";
+export type EditorTab = "params" | "headers" | "auth" | "body";
 export type ResponseTab = "body" | "headers";
 
 export const HTTP_METHODS: HttpMethod[] = [
@@ -151,5 +162,37 @@ export function buildRequestBody(
       return { formData: { _0: formPairs } };
     case "rawText":
       return { rawText: { _0: rawText } };
+  }
+}
+
+// Auth helpers
+export function createEmptyAuth(): AuthConfig {
+  return { none: {} };
+}
+
+export function getAuthType(auth?: AuthConfig): AuthType {
+  if (!auth) return "none";
+  if ("none" in auth) return "none";
+  if ("bearerToken" in auth) return "bearerToken";
+  if ("basicAuth" in auth) return "basicAuth";
+  if ("apiKey" in auth) return "apiKey";
+  return "none";
+}
+
+export function buildAuthConfig(
+  type: AuthType,
+  bearer: { token: string },
+  basic: { username: string; password: string },
+  apiKey: { key: string; value: string; location: ApiKeyLocation },
+): AuthConfig {
+  switch (type) {
+    case "none":
+      return { none: {} };
+    case "bearerToken":
+      return { bearerToken: { _0: { token: bearer.token } } };
+    case "basicAuth":
+      return { basicAuth: { _0: { username: basic.username, password: basic.password } } };
+    case "apiKey":
+      return { apiKey: { _0: { key: apiKey.key, value: apiKey.value, location: apiKey.location } } };
   }
 }

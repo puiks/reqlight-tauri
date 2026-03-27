@@ -62,3 +62,19 @@ jobs:
       - name: cargo test
         working-directory: src-tauri
         run: cargo test
+
+  check-e2e:
+    name: E2E Smoke Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: npx playwright install --with-deps chromium
+      - run: pnpm test:e2e
