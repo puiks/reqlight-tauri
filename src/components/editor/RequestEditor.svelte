@@ -5,11 +5,31 @@
   import KeyValueEditor from "./KeyValueEditor.svelte";
   import BodyEditor from "./BodyEditor.svelte";
   import AuthEditor from "./AuthEditor.svelte";
+  import WebSocketPanel from "./WebSocketPanel.svelte";
   import EmptyState from "../shared/EmptyState.svelte";
 </script>
 
-{#if editorStore.requestId}
-  <div class="editor">
+<div class="editor">
+  <div class="protocol-bar">
+    <button
+      class="proto-tab"
+      class:active={editorStore.protocolMode === "http"}
+      onclick={() => (editorStore.protocolMode = "http")}
+    >
+      HTTP
+    </button>
+    <button
+      class="proto-tab"
+      class:active={editorStore.protocolMode === "ws"}
+      onclick={() => (editorStore.protocolMode = "ws")}
+    >
+      WebSocket
+    </button>
+  </div>
+
+  {#if editorStore.protocolMode === "ws"}
+    <WebSocketPanel />
+  {:else if editorStore.requestId}
     <div class="name-bar">
       <input
         type="text"
@@ -41,16 +61,16 @@
         <BodyEditor />
       {/if}
     </div>
-  </div>
-{:else}
-  <div class="empty">
-    <EmptyState
-      icon="⚡"
-      title="Welcome to Reqlight"
-      message="Select a request from the sidebar or create a new one to get started."
-    />
-  </div>
-{/if}
+  {:else}
+    <div class="empty">
+      <EmptyState
+        icon="⚡"
+        title="Welcome to Reqlight"
+        message="Select a request from the sidebar or create a new one to get started."
+      />
+    </div>
+  {/if}
+</div>
 
 <style>
   .editor {
@@ -58,6 +78,27 @@
     flex-direction: column;
     height: 100%;
     overflow: hidden;
+  }
+  .protocol-bar {
+    display: flex;
+    border-bottom: 1px solid var(--border-color);
+    flex-shrink: 0;
+  }
+  .proto-tab {
+    padding: var(--sp-xs) var(--sp-md);
+    font-size: var(--fs-caption);
+    font-weight: 600;
+    color: var(--text-tertiary);
+    border-bottom: 2px solid transparent;
+    border-radius: 0;
+    background: transparent;
+  }
+  .proto-tab:hover {
+    color: var(--text-primary);
+  }
+  .proto-tab.active {
+    color: var(--color-info);
+    border-bottom-color: var(--color-info);
   }
   .name-bar {
     padding: var(--sp-sm) var(--sp-md);

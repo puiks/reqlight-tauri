@@ -196,3 +196,19 @@ export function buildAuthConfig(
       return { apiKey: { _0: { key: apiKey.key, value: apiKey.value, location: apiKey.location } } };
   }
 }
+
+// WebSocket types
+export type ConnectionStatus = "disconnected" | "connecting" | "connected";
+
+export interface WsMessage {
+  id: string;
+  direction: "sent" | "received";
+  content: string;
+  timestamp: string;
+}
+
+export interface WsEvent {
+  connection_id: string;
+  event_type: "message" | "connected" | "disconnected" | "error";
+  data: string | null;
+}

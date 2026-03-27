@@ -100,3 +100,24 @@ export async function exportCurl(
 ): Promise<string> {
   return invoke<string>("export_curl", { request, environment });
 }
+
+// WebSocket
+export async function wsConnect(
+  connectionId: string,
+  url: string,
+): Promise<void> {
+  return invoke("ws_connect", { connectionId, url });
+}
+
+export async function wsSend(
+  connectionId: string,
+  message: string,
+): Promise<void> {
+  return invoke("ws_send", { connectionId, message });
+}
+
+export async function wsDisconnect(
+  connectionId: string,
+): Promise<void> {
+  return invoke("ws_disconnect", { connectionId });
+}

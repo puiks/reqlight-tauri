@@ -83,6 +83,24 @@ src-tauri/src/                # Rust Backend
 - Frontend: 遵循项目已有的 Svelte 5 runes 风格（`$state`, `$derived`, `$effect`）。
 - 类型：TypeScript 使用 strict mode，Rust 中避免 `unwrap()`（除测试代码外）。
 
+### 提交前必须执行的检查清单
+
+> **每次 commit 前必须全部通过，不能跳步。CI 会严格验证这些。**
+
+```bash
+# Rust（在 src-tauri/ 下执行）
+cargo fmt --check          # 格式检查（CI 会 diff 失败）
+cargo clippy -- -D warnings  # 零警告
+cargo test                   # 全部通过
+
+# Frontend
+pnpm test                    # 全部通过
+pnpm check                   # svelte-check + TypeScript 零错误
+```
+
+- **`cargo fmt --check` 是最容易遗漏的。** 每次修改 Rust 代码后，必须先跑 `cargo fmt` 再提交。
+- 性能测试的阈值必须考虑 CI 环境（比本地慢 2-3x）。对于已知慢的操作，使用 `{ timeout: 30000 }` 并设宽松阈值。
+
 ### Tauri IPC Convention
 
 - 前端 → Rust 的调用统一走 `src/lib/commands.ts`，不直接调用 `invoke()`。

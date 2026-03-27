@@ -3,14 +3,20 @@
   import { appStore } from "./lib/stores/app.svelte";
   import { editorStore } from "./lib/stores/editor.svelte";
   import { initKeyboardShortcuts, registerShortcut } from "./lib/utils/keyboard";
+  import { handleError } from "./lib/utils/errors";
   import Toolbar from "./components/toolbar/Toolbar.svelte";
   import MainLayout from "./components/layout/MainLayout.svelte";
   import Toast from "./components/shared/Toast.svelte";
+  import ErrorFallback from "./components/shared/ErrorFallback.svelte";
   import EnvironmentEditor from "./components/environment/EnvironmentEditor.svelte";
   import CurlImportModal from "./components/toolbar/CurlImportModal.svelte";
 
   let showEnvEditor = $state(false);
   let showCurlImport = $state(false);
+
+  function handleBoundaryError(error: unknown) {
+    handleError(error, "boundary", { silent: true });
+  }
 
   onMount(() => {
     // Load persisted state
@@ -21,6 +27,13 @@
         if (request) editorStore.loadFrom(request);
       }
     });
+
+    // Catch unhandled promise rejections
+    const handleRejection = (e: PromiseRejectionEvent) => {
+      e.preventDefault();
+      handleError(e.reason, "unhandledrejection");
+    };
+    window.addEventListener("unhandledrejection", handleRejection);
 
     // Register keyboard shortcuts
     const cleanup = initKeyboardShortcuts();
@@ -81,6 +94,7 @@
       unsub3();
       unsub4();
       window.removeEventListener("beforeunload", handleBeforeUnload);
+      window.removeEventListener("unhandledrejection", handleRejection);
     };
   });
 </script>
@@ -90,7 +104,12 @@
     onopenenvs={() => (showEnvEditor = true)}
     onimportcurl={() => (showCurlImport = true)}
   />
-  <MainLayout />
+  <svelte:boundary onerror={handleBoundaryError}>
+    <MainLayout />
+    {#snippet failed(error, reset)}
+      <ErrorFallback {error} onreset={reset} />
+    {/snippet}
+  </svelte:boundary>
   <Toast />
 
   {#if showEnvEditor}

@@ -10,7 +10,16 @@ export default defineConfig(async () => ({
   test: {
     environment: "jsdom",
     include: ["src/**/*.test.ts"],
-    setupFiles: [],
+    setupFiles: ["./src/test-setup.ts"],
+    server: {
+      deps: {
+        // Inline svelte so vitest resolves it with browser conditions
+        inline: [/svelte/],
+      },
+    },
+  },
+  resolve: {
+    conditions: ["browser"],
   },
   server: {
     port: 1420,

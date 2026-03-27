@@ -4,3 +4,4 @@ pub mod http_client;
 pub mod interpolator;
 pub mod keychain;
 pub mod persistence;
+pub mod websocket;

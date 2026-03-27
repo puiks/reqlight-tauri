@@ -53,6 +53,7 @@ class EditorStore {
   errorMessage = $state<string | null>(null);
   isDirty = $state(false);
   timeoutSecs = $state(DEFAULT_REQUEST_TIMEOUT);
+  protocolMode = $state<"http" | "ws">("http");
 
   // Derived
   get isUrlValid(): boolean {

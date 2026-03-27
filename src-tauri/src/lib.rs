@@ -4,13 +4,26 @@ mod services;
 
 use std::sync::Arc;
 
-use commands::{curl, http, keychain, persistence};
+use commands::{curl, http, keychain, persistence, websocket};
+use services::websocket::WsManager;
 use tokio::sync::Notify;
+
+/// Shared HTTP client with cookie jar enabled.
+/// Wrapped in Arc so it can be cloned into async contexts.
+pub struct SharedHttpClient(pub Arc<reqwest::Client>);
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let http_client = reqwest::Client::builder()
+        .cookie_store(true)
+        .build()
+        .expect("Failed to create HTTP client");
+
     tauri::Builder::default()
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .manage(SharedHttpClient(Arc::new(http_client)))
         .manage(http::RequestCanceller(Arc::new(Notify::new())))
+        .manage(WsManager::new())
         .invoke_handler(tauri::generate_handler![
             // HTTP
             http::send_request,
@@ -25,6 +38,10 @@ pub fn run() {
             // cURL
             curl::parse_curl,
             curl::export_curl,
+            // WebSocket
+            websocket::ws_connect,
+            websocket::ws_send,
+            websocket::ws_disconnect,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

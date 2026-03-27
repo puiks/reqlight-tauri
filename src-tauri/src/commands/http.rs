@@ -7,6 +7,7 @@ use crate::models::{
     AuthConfig, HttpMethod, KeyValuePair, RequestBody, RequestEnvironment, ResponseRecord,
 };
 use crate::services::{http_client, interpolator};
+use crate::SharedHttpClient;
 
 /// Shared cancellation signal. When `notify_waiters()` is called,
 /// any in-flight request will be aborted.
@@ -25,6 +26,7 @@ pub async fn send_request(
     #[allow(unused_mut)] mut auth: AuthConfig,
     timeout_secs: Option<u64>,
     environment: Option<RequestEnvironment>,
+    http_client_state: State<'_, SharedHttpClient>,
     canceller: State<'_, RequestCanceller>,
 ) -> Result<ResponseRecord, String> {
     // Interpolate variables if environment is provided
@@ -39,10 +41,12 @@ pub async fn send_request(
         (url, headers, query_params, body, auth)
     };
 
+    let client = http_client_state.0.clone();
     let cancel = canceller.0.clone();
 
     tokio::select! {
         result = http_client::execute(
+            &client,
             &method,
             &final_url,
             &final_headers,
