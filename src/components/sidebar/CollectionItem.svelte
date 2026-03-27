@@ -70,6 +70,7 @@
         <div
           class="drag-wrapper"
           class:drag-over={dragOverIndex === index && dragFromIndex !== index}
+          class:dragging={dragFromIndex === index}
           draggable="true"
           ondragstart={(e) => handleDragStart(index, e)}
           ondragover={(e) => handleDragOver(index, e)}
@@ -131,5 +132,8 @@
   }
   .drag-wrapper.drag-over {
     border-top-color: var(--color-info);
+  }
+  .drag-wrapper.dragging {
+    opacity: 0.4;
   }
 </style>

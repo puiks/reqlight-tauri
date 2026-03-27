@@ -236,6 +236,15 @@ class AppStore {
     this.scheduleSave();
   }
 
+  reorderCollection(fromIndex: number, toIndex: number) {
+    if (fromIndex === toIndex) return;
+    const cols = [...this.collections];
+    const [moved] = cols.splice(fromIndex, 1);
+    cols.splice(toIndex, 0, moved);
+    this.collections = cols.map((c, i) => ({ ...c, sortOrder: i }));
+    this.scheduleSave();
+  }
+
   reorderRequest(collectionId: string, fromIndex: number, toIndex: number) {
     if (fromIndex === toIndex) return;
     this.collections = this.collections.map((c) => {

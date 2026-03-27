@@ -22,6 +22,8 @@
 
   let renamingId = $state<string | null>(null);
   let renameValue = $state("");
+  let dragFromIndex = $state<number | null>(null);
+  let dragOverIndex = $state<number | null>(null);
 
   function handleCollectionContext(e: MouseEvent, collectionId: string) {
     e.preventDefault();
@@ -68,6 +70,34 @@
   function closeContextMenu() {
     contextMenu = null;
   }
+
+  function handleCollectionDragStart(index: number, e: DragEvent) {
+    dragFromIndex = index;
+    if (e.dataTransfer) {
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", `collection:${index}`);
+    }
+  }
+
+  function handleCollectionDragOver(index: number, e: DragEvent) {
+    e.preventDefault();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+    dragOverIndex = index;
+  }
+
+  function handleCollectionDrop(index: number, e: DragEvent) {
+    e.preventDefault();
+    if (dragFromIndex !== null && dragFromIndex !== index) {
+      appStore.reorderCollection(dragFromIndex, index);
+    }
+    dragFromIndex = null;
+    dragOverIndex = null;
+  }
+
+  function handleCollectionDragEnd() {
+    dragFromIndex = null;
+    dragOverIndex = null;
+  }
 </script>
 
 <svelte:window onclick={closeContextMenu} />
@@ -96,25 +126,38 @@
         />
       {/if}
     {:else}
-      {#each appStore.filteredCollections as collection (collection.id)}
-        {#if renamingId === collection.id}
-          <div class="rename-input">
-            <input
-              type="text"
-              bind:value={renameValue}
-              onblur={commitRename}
-              onkeydown={(e) => {
-                if (e.key === "Enter") commitRename();
-                if (e.key === "Escape") (renamingId = null);
-              }}
+      {#each appStore.filteredCollections as collection, index (collection.id)}
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div
+          class="collection-drag-wrapper"
+          class:collection-drag-over={dragOverIndex === index && dragFromIndex !== index}
+          class:collection-dragging={dragFromIndex === index}
+          draggable="true"
+          ondragstart={(e) => handleCollectionDragStart(index, e)}
+          ondragover={(e) => handleCollectionDragOver(index, e)}
+          ondrop={(e) => handleCollectionDrop(index, e)}
+          ondragend={handleCollectionDragEnd}
+          ondragleave={() => { if (dragOverIndex === index) dragOverIndex = null; }}
+        >
+          {#if renamingId === collection.id}
+            <div class="rename-input">
+              <input
+                type="text"
+                bind:value={renameValue}
+                onblur={commitRename}
+                onkeydown={(e) => {
+                  if (e.key === "Enter") commitRename();
+                  if (e.key === "Escape") (renamingId = null);
+                }}
+              />
+            </div>
+          {:else}
+            <CollectionItem
+              {collection}
+              oncontextmenu={(e) => handleCollectionContext(e, collection.id)}
             />
-          </div>
-        {:else}
-          <CollectionItem
-            {collection}
-            oncontextmenu={(e) => handleCollectionContext(e, collection.id)}
-          />
-        {/if}
+          {/if}
+        </div>
       {/each}
     {/if}
   </div>
@@ -209,6 +252,18 @@
   .rename-input input {
     width: 100%;
     font-size: var(--fs-small);
+  }
+
+  /* Collection drag */
+  .collection-drag-wrapper {
+    border-top: 2px solid transparent;
+    transition: border-color 0.1s;
+  }
+  .collection-drag-wrapper.collection-drag-over {
+    border-top-color: var(--color-info);
+  }
+  .collection-drag-wrapper.collection-dragging {
+    opacity: 0.5;
   }
 
   /* Context menu */
