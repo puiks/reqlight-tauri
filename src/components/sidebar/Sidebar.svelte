@@ -6,6 +6,8 @@
   import EmptyState from "../shared/EmptyState.svelte";
   import ConfirmDialog from "../shared/ConfirmDialog.svelte";
 
+  let { oncollectionio }: { oncollectionio: () => void } = $props();
+
   let contextMenu = $state<{
     x: number;
     y: number;
@@ -105,7 +107,10 @@
 <div class="sidebar">
   <div class="toolbar">
     <span class="title">Collections</span>
-    <button class="add-btn" onclick={handleAddCollection} title="New Collection (⌘⇧N)">+</button>
+    <div class="toolbar-actions">
+      <button class="tool-btn" onclick={oncollectionio} title="Import / Export">⇄</button>
+      <button class="tool-btn add-btn" onclick={handleAddCollection} title="New Collection (⌘⇧N)">+</button>
+    </div>
   </div>
 
   <SearchBar />
@@ -235,11 +240,22 @@
     letter-spacing: 0.5px;
     color: var(--text-secondary);
   }
+  .toolbar-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-xs);
+  }
+  .tool-btn {
+    font-size: var(--fs-callout);
+    padding: 0 var(--sp-xs);
+    color: var(--text-secondary);
+  }
+  .tool-btn:hover {
+    color: var(--text-primary);
+  }
   .add-btn {
     font-size: 18px;
     font-weight: 300;
-    padding: 0 var(--sp-xs);
-    color: var(--text-secondary);
   }
   .list {
     flex: 1;

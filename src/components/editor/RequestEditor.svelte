@@ -7,6 +7,8 @@
   import AuthEditor from "./AuthEditor.svelte";
   import WebSocketPanel from "./WebSocketPanel.svelte";
   import EmptyState from "../shared/EmptyState.svelte";
+
+  let { onimportcurl }: { onimportcurl: () => void } = $props();
 </script>
 
 <div class="editor">
@@ -40,7 +42,7 @@
       />
     </div>
 
-    <URLBar />
+    <URLBar {onimportcurl} />
 
     <EditorTabs />
 

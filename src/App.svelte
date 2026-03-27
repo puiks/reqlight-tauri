@@ -104,11 +104,12 @@
 <div class="app">
   <Toolbar
     onopenenvs={() => (showEnvEditor = true)}
-    onimportcurl={() => (showCurlImport = true)}
-    oncollectionio={() => (showCollectionIO = true)}
   />
   <svelte:boundary onerror={handleBoundaryError}>
-    <MainLayout />
+    <MainLayout
+      onimportcurl={() => (showCurlImport = true)}
+      oncollectionio={() => (showCollectionIO = true)}
+    />
     {#snippet failed(error, reset)}
       <ErrorFallback {error} onreset={reset} />
     {/snippet}

@@ -2,6 +2,8 @@
   import { editorStore } from "../../lib/stores/editor.svelte";
   import { HTTP_METHODS, METHOD_COLORS, type HttpMethod } from "../../lib/types";
 
+  let { onimportcurl }: { onimportcurl: () => void } = $props();
+
   function handleSend() {
     editorStore.send();
   }
@@ -37,6 +39,7 @@
 
   <div class="options-group">
     <div class="timeout-group" title="Request timeout (seconds)">
+      <span class="option-label">Timeout</span>
       <input
         type="number"
         class="timeout-input"
@@ -47,12 +50,11 @@
       <span class="timeout-label">s</span>
     </div>
     <button
-      class="redirect-toggle"
-      class:active={editorStore.followRedirects}
-      title={editorStore.followRedirects ? "Following redirects (click to disable)" : "Not following redirects (click to enable)"}
-      onclick={() => (editorStore.followRedirects = !editorStore.followRedirects)}
+      class="import-curl-btn"
+      onclick={onimportcurl}
+      title="Import from cURL"
     >
-      {editorStore.followRedirects ? "3xx→" : "3xx✕"}
+      cURL
     </button>
   </div>
 
@@ -126,13 +128,18 @@
   .timeout-group {
     display: flex;
     align-items: center;
-    gap: 2px;
+    gap: var(--sp-xs);
+  }
+  .option-label {
+    font-size: var(--fs-small);
+    color: var(--text-tertiary);
+    white-space: nowrap;
   }
   .timeout-input {
     width: 42px;
     text-align: center;
     font-family: var(--font-mono);
-    font-size: var(--fs-caption);
+    font-size: var(--fs-small);
     padding: var(--sp-xs) 2px;
     -moz-appearance: textfield;
     appearance: textfield;
@@ -145,15 +152,17 @@
     font-size: var(--fs-caption);
     color: var(--text-tertiary);
   }
-  .redirect-toggle {
-    font-size: var(--fs-caption);
+  .import-curl-btn {
+    font-size: var(--fs-small);
     font-family: var(--font-mono);
-    padding: var(--sp-xs) var(--sp-xs);
+    padding: var(--sp-xs) var(--sp-sm);
     color: var(--text-tertiary);
     border-radius: var(--radius-sm);
     white-space: nowrap;
+    border: 1px dashed var(--border-color);
   }
-  .redirect-toggle.active {
-    color: var(--color-info);
+  .import-curl-btn:hover {
+    color: var(--text-primary);
+    border-color: var(--text-secondary);
   }
 </style>
