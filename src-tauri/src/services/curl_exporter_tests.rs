@@ -17,6 +17,7 @@ fn base_request() -> SavedRequest {
         created_at: String::new(),
         updated_at: String::new(),
         response_extractions: vec![],
+        timeout_secs: None,
     }
 }
 

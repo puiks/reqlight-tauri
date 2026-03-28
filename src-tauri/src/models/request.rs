@@ -137,6 +137,8 @@ pub struct SavedRequest {
     pub updated_at: String,
     #[serde(default)]
     pub response_extractions: Vec<super::extraction::ExtractionRule>,
+    #[serde(default)]
+    pub timeout_secs: Option<u64>,
 }
 
 fn default_request_name() -> String {
@@ -162,6 +164,7 @@ impl Default for SavedRequest {
             created_at: now_iso8601(),
             updated_at: now_iso8601(),
             response_extractions: vec![],
+            timeout_secs: None,
         }
     }
 }

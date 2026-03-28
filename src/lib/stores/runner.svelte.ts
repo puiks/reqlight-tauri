@@ -76,6 +76,7 @@ class RunnerStore {
         queryParams: request.queryParams,
         body: request.body,
         auth: request.auth ?? 'none',
+        timeoutSecs: request.timeoutSecs,
         environment: environmentStore.activeEnvironment,
         proxyConfig: appStore.proxyConfig.enabled ? appStore.proxyConfig : undefined,
       })

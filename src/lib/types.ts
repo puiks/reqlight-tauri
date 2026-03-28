@@ -70,6 +70,7 @@ export interface SavedRequest {
   createdAt: string
   updatedAt: string
   responseExtractions?: ExtractionRule[]
+  timeoutSecs?: number
 }
 
 export interface RequestCollection {
