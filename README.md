@@ -6,13 +6,20 @@ A lightweight, cross-platform HTTP client built with [Tauri](https://tauri.app/)
 
 ## Features
 
-- **HTTP Requests** — GET / POST / PUT / PATCH / DELETE with query params, headers, and multiple body types (JSON, Form Data, Raw Text)
+- **HTTP Requests** — GET / POST / PUT / PATCH / DELETE / HEAD / OPTIONS with query params, headers, and multiple body types (JSON, Form Data, Multipart, Raw Text)
+- **GraphQL** — Dedicated query and variables editor with syntax support
+- **WebSocket** — Connect with custom headers, auto-reconnect with exponential backoff, environment variable interpolation
+- **Authentication** — Bearer Token, Basic Auth, API Key, OAuth 2.0 (Client Credentials & Authorization Code flows)
 - **Collections** — Organize requests into folders, rename, duplicate, drag to reorder
+- **Collection Runner** — Execute all requests in a collection sequentially with pass/fail tracking and variable chaining
 - **Environment Variables** — Multiple environments (dev / staging / prod), `{{variable}}` interpolation everywhere
-- **Secure Storage** — Sensitive values stored in OS keychain (macOS Keychain / Windows Credential Manager / Linux Secret Service)
-- **cURL Import & Export** — Paste a cURL command to import, or export any request as cURL
-- **JSON Syntax Highlighting** — Auto-formatted, color-coded response viewer
-- **Request History** — Last 100 requests with status and timing
+- **Response Variable Extraction** — Define JSONPath rules to extract values from responses into environment variables
+- **Code Generation** — Export requests as JavaScript (fetch / axios), Python (requests), or cURL
+- **Import / Export** — cURL, Postman collections & environments, OpenAPI 3.x specs, HAR files
+- **Response Diff** — Pin a response and compare side-by-side with the latest result
+- **Proxy Settings** — Configurable HTTP proxy with URL and no-proxy list
+- **Secure Storage** — Sensitive values stored in OS keychain (macOS Keychain / Windows Credential Manager)
+- **Request History** — Last 100 requests with status, timing, and link back to source request
 - **Dark / Light Theme** — Follows system preference, or toggle manually
 - **Keyboard Shortcuts** — `⌘↩` Send, `⌘N` New Request, `⌘⇧N` New Collection, `⌘E` Environments
 
@@ -22,6 +29,7 @@ A lightweight, cross-platform HTTP client built with [Tauri](https://tauri.app/)
 |-------|-----------|
 | Backend | Rust + [Tauri v2](https://v2.tauri.app/) |
 | HTTP | [reqwest](https://docs.rs/reqwest) + rustls |
+| WebSocket | [tokio-tungstenite](https://docs.rs/tokio-tungstenite) |
 | Secrets | [keyring](https://docs.rs/keyring) (cross-platform) |
 | Frontend | [Svelte 5](https://svelte.dev/) + TypeScript |
 | Styling | Pure CSS + CSS Variables (zero dependencies) |
@@ -50,25 +58,6 @@ pnpm tauri build
 ```
 
 The output binary will be in `src-tauri/target/release/`.
-
-## Project Structure
-
-```
-reqlight/
-├── src-tauri/               # Rust backend
-│   └── src/
-│       ├── commands/        # Tauri IPC commands (HTTP, persistence, keychain, cURL)
-│       ├── models/          # Data models (serde, JSON-compatible with native app)
-│       └── services/        # Business logic (HTTP client, interpolator, cURL parser)
-├── src/                     # Svelte frontend
-│   ├── components/          # UI components (sidebar, editor, response, environment)
-│   ├── lib/
-│   │   ├── stores/          # Svelte 5 rune-based state ($state, $derived)
-│   │   ├── utils/           # JSON highlighter, keyboard shortcuts
-│   │   ├── types.ts         # TypeScript type definitions
-│   │   └── commands.ts      # Type-safe Tauri invoke wrappers
-│   └── app.css              # Global styles + CSS design tokens
-```
 
 ## Data Storage
 
