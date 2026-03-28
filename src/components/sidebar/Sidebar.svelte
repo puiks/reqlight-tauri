@@ -6,7 +6,15 @@
   import EmptyState from "../shared/EmptyState.svelte";
   import ConfirmDialog from "../shared/ConfirmDialog.svelte";
 
-  let { oncollectionio }: { oncollectionio: () => void } = $props();
+  import type { RequestCollection } from "../../lib/types";
+
+  let {
+    oncollectionio,
+    onruncollection,
+  }: {
+    oncollectionio: () => void;
+    onruncollection?: (collection: RequestCollection) => void;
+  } = $props();
 
   let contextMenu = $state<{
     x: number;
@@ -162,6 +170,7 @@
               oncontextmenu={(e) => handleCollectionContext(e, collection.id)}
               ondelete={() => handleDelete("collection", collection.id, collection.name)}
               ondeleterequest={(id, name) => handleDelete("request", id, name)}
+              onrun={() => onruncollection?.(collection)}
             />
           {/if}
         </div>

@@ -9,11 +9,13 @@
     oncontextmenu,
     ondelete,
     ondeleterequest,
+    onrun,
   }: {
     collection: RequestCollection;
     oncontextmenu?: (e: MouseEvent) => void;
     ondelete?: () => void;
     ondeleterequest?: (requestId: string, requestName: string) => void;
+    onrun?: () => void;
   } = $props();
 
   let expanded = $state(true);
@@ -66,6 +68,13 @@
     <span class="chevron" class:expanded>{expanded ? "▾" : "▸"}</span>
     <span class="name">{collection.name}</span>
     <span class="count">{collection.requests.length}</span>
+    {#if onrun}
+      <button
+        class="run-btn"
+        title="Run Collection"
+        onclick={(e) => { e.stopPropagation(); onrun?.(); }}
+      >▶</button>
+    {/if}
     {#if ondelete}
       <button
         class="delete-btn"
@@ -134,6 +143,20 @@
     font-size: var(--fs-caption);
     color: var(--text-tertiary);
     font-weight: 400;
+  }
+  .run-btn {
+    visibility: hidden;
+    font-size: var(--fs-caption);
+    color: var(--text-tertiary);
+    padding: 0 var(--sp-xs);
+    line-height: 1;
+    flex-shrink: 0;
+  }
+  .run-btn:hover {
+    color: var(--color-success);
+  }
+  .header:hover .run-btn {
+    visibility: visible;
   }
   .delete-btn {
     visibility: hidden;
