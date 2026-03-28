@@ -144,7 +144,10 @@ pub fn export(request: &SavedRequest, environment: Option<&RequestEnvironment>) 
             let vars_value: serde_json::Value = if variables.trim().is_empty() {
                 serde_json::Value::Null
             } else {
-                serde_json::from_str(variables).unwrap_or(serde_json::Value::Null)
+                serde_json::from_str(variables).unwrap_or_else(|e| {
+                    eprintln!("Warning: failed to parse GraphQL variables as JSON: {e}");
+                    serde_json::Value::Null
+                })
             };
             let gql = serde_json::json!({ "query": query, "variables": vars_value });
             parts.push(format!("-d '{}'", shell_escape(&gql.to_string())));

@@ -38,8 +38,12 @@ pub async fn client_credentials_exchange(
         .map_err(|e| format!("Token request failed: {e}"))?;
 
     if !resp.status().is_success() {
-        let body = resp.text().await.unwrap_or_default();
-        return Err(format!("Token endpoint returned error: {body}"));
+        let status = resp.status();
+        let body = resp.text().await.unwrap_or_else(|e| {
+            eprintln!("Warning: failed to read token error response body: {e}");
+            format!("<failed to read body: {e}>")
+        });
+        return Err(format!("Token endpoint returned {status}: {body}"));
     }
 
     resp.json::<TokenResponse>()
@@ -72,8 +76,12 @@ pub async fn authorization_code_exchange(
         .map_err(|e| format!("Token request failed: {e}"))?;
 
     if !resp.status().is_success() {
-        let body = resp.text().await.unwrap_or_default();
-        return Err(format!("Token endpoint returned error: {body}"));
+        let status = resp.status();
+        let body = resp.text().await.unwrap_or_else(|e| {
+            eprintln!("Warning: failed to read token error response body: {e}");
+            format!("<failed to read body: {e}>")
+        });
+        return Err(format!("Token endpoint returned {status}: {body}"));
     }
 
     resp.json::<TokenResponse>()
@@ -104,8 +112,12 @@ pub async fn refresh_token_exchange(
         .map_err(|e| format!("Token refresh failed: {e}"))?;
 
     if !resp.status().is_success() {
-        let body = resp.text().await.unwrap_or_default();
-        return Err(format!("Token refresh error: {body}"));
+        let status = resp.status();
+        let body = resp.text().await.unwrap_or_else(|e| {
+            eprintln!("Warning: failed to read token refresh error response body: {e}");
+            format!("<failed to read body: {e}>")
+        });
+        return Err(format!("Token refresh error {status}: {body}"));
     }
 
     resp.json::<TokenResponse>()
