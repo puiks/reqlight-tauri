@@ -116,6 +116,7 @@ fn save_state_to_path(path: &Path, state: &AppState) -> Result<(), String> {
 /// Load app state from disk. Restores secret values from keychain.
 pub fn load_state(app: &tauri::AppHandle) -> Result<AppState, String> {
     let path = data_file_path(app)?;
+    tracing::info!(path = %path.display(), "Loading app state");
     let mut state = load_state_from_path(&path)?;
 
     // Restore secret environment variables from keychain
@@ -163,6 +164,7 @@ pub fn load_state(app: &tauri::AppHandle) -> Result<AppState, String> {
 /// Save app state to disk. Strips secret values and stores them in keychain.
 pub fn save_state(app: &tauri::AppHandle, state: &AppState) -> Result<(), String> {
     let path = data_file_path(app)?;
+    tracing::debug!(path = %path.display(), "Saving app state");
 
     let (sanitized, secrets) = sanitize_secrets(state);
 

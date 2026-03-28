@@ -17,8 +17,43 @@ use tokio::sync::Notify;
 /// Wrapped in Arc so it can be cloned into async contexts.
 pub struct SharedHttpClient(pub Arc<reqwest::Client>);
 
+fn init_logging() {
+    use tracing_subscriber::{fmt, EnvFilter};
+
+    let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
+
+    let log_dir = dirs_next().unwrap_or_else(std::env::temp_dir);
+    let file_appender = tracing_appender::rolling::daily(log_dir, "reqlight.log");
+
+    fmt()
+        .with_env_filter(filter)
+        .with_writer(file_appender)
+        .with_ansi(false)
+        .init();
+}
+
+/// Returns the platform-specific log directory for Reqlight.
+fn dirs_next() -> Option<std::path::PathBuf> {
+    #[cfg(target_os = "macos")]
+    {
+        dirs::home_dir().map(|h| h.join("Library/Logs/Reqlight"))
+    }
+    #[cfg(target_os = "windows")]
+    {
+        dirs::data_local_dir().map(|d| d.join("Reqlight/logs"))
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    {
+        dirs::data_dir().map(|d| d.join("reqlight/logs"))
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    init_logging();
+
+    tracing::info!("Reqlight starting up");
+
     let http_client = reqwest::Client::builder()
         .cookie_store(true)
         .build()

@@ -60,6 +60,8 @@ impl WsManager {
     where
         F: Fn(WsEvent) + Send + Sync + 'static,
     {
+        tracing::info!(%url, %connection_id, "Opening WebSocket connection");
+
         // Validate URL before connecting
         let _ = url::Url::parse(url)
             .map_err(|e| AppError::Validation(format!("Invalid WebSocket URL: {e}")))?;

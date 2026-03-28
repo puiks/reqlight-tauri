@@ -311,8 +311,14 @@ pub async fn execute(
     };
 
     let start = Instant::now();
+    tracing::debug!(?method, %url, "Sending HTTP request");
     let response = request.send().await?;
     let elapsed = start.elapsed().as_secs_f64() * 1000.0;
+    tracing::info!(
+        status = response.status().as_u16(),
+        elapsed_ms = format!("{elapsed:.1}"),
+        "HTTP response received"
+    );
 
     read_response(response, elapsed).await
 }

@@ -49,6 +49,7 @@ pub fn generate_pkce_challenge() -> PkceChallenge {
 }
 
 /// Exchange client credentials for a token (Client Credentials Grant).
+#[tracing::instrument(skip(client, client_secret))]
 pub async fn client_credentials_exchange(
     client: &reqwest::Client,
     token_url: &str,
@@ -75,7 +76,7 @@ pub async fn client_credentials_exchange(
     if !resp.status().is_success() {
         let status = resp.status();
         let body = resp.text().await.unwrap_or_else(|e| {
-            eprintln!("Warning: failed to read token error response body: {e}");
+            tracing::warn!("Failed to read token error response body: {e}");
             format!("<failed to read body: {e}>")
         });
         return Err(format!("Token endpoint returned {status}: {body}"));
@@ -88,6 +89,7 @@ pub async fn client_credentials_exchange(
 
 /// Exchange an authorization code for a token (Authorization Code Grant).
 /// When PKCE is used, `code_verifier` must be provided.
+#[tracing::instrument(skip(client, client_secret, code_verifier))]
 pub async fn authorization_code_exchange(
     client: &reqwest::Client,
     token_url: &str,
@@ -118,7 +120,7 @@ pub async fn authorization_code_exchange(
     if !resp.status().is_success() {
         let status = resp.status();
         let body = resp.text().await.unwrap_or_else(|e| {
-            eprintln!("Warning: failed to read token error response body: {e}");
+            tracing::warn!("Failed to read token error response body: {e}");
             format!("<failed to read body: {e}>")
         });
         return Err(format!("Token endpoint returned {status}: {body}"));
@@ -130,6 +132,7 @@ pub async fn authorization_code_exchange(
 }
 
 /// Refresh an expired token.
+#[tracing::instrument(skip(client, refresh_token, client_secret))]
 pub async fn refresh_token_exchange(
     client: &reqwest::Client,
     token_url: &str,
