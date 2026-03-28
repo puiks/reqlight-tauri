@@ -1,4 +1,4 @@
-# Reqlight Tauri - Development Guidelines
+# Reqlight - Development Guidelines
 
 ## Tech Stack
 

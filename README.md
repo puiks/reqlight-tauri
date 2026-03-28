@@ -1,6 +1,6 @@
-# Reqlight (Tauri)
+# Reqlight
 
-A lightweight, cross-platform HTTP client — the [Tauri](https://tauri.app/) port of [Reqlight](https://github.com/puiks/reqlight) (native macOS version).
+A lightweight, cross-platform HTTP client built with [Tauri](https://tauri.app/).
 
 > **Reqlight** is a fast, minimal alternative to Postman. No login required. Fully offline. Your data stays local.
 
@@ -54,7 +54,7 @@ The output binary will be in `src-tauri/target/release/`.
 ## Project Structure
 
 ```
-reqlight-tauri/
+reqlight/
 ├── src-tauri/               # Rust backend
 │   └── src/
 │       ├── commands/        # Tauri IPC commands (HTTP, persistence, keychain, cURL)
@@ -75,10 +75,6 @@ reqlight-tauri/
 - **Requests & collections**: `<app_data_dir>/data.json` (human-readable, pretty-printed)
 - **Secret variables**: OS credential store (never written to disk)
 - **Theme preference**: `localStorage`
-
-## Related
-
-- [**Reqlight (macOS native)**](https://github.com/puiks/reqlight) — The original SwiftUI version for macOS. Zero dependencies, ~30MB memory, instant launch.
 
 ## License
 
