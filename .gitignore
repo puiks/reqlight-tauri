@@ -14,3 +14,5 @@ src-tauri/gen/
 *.p12
 *.pfx
 *.secret
+test-results/
+MIGRATION_PLAN.md
