@@ -1,3 +1,0 @@
-#!/bin/sh
-# Pre-commit hook: run format check and lint
-vp check
