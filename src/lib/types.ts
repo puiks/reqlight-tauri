@@ -6,7 +6,7 @@ export interface KeyValuePair {
   isSecret: boolean;
 }
 
-export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "HEAD" | "OPTIONS";
 
 export interface MultipartField {
   id: string;
@@ -21,19 +21,41 @@ export type RequestBody =
   | { json: { _0: string } }
   | { formData: { _0: KeyValuePair[] } }
   | { rawText: { _0: string } }
-  | { multipart: { _0: MultipartField[] } };
+  | { multipart: { _0: MultipartField[] } }
+  | { graphql: { query: string; variables: string } };
 
-export type BodyType = "none" | "json" | "formData" | "rawText" | "multipart";
+export type BodyType = "none" | "json" | "formData" | "rawText" | "multipart" | "graphql";
 
 // Auth types
-export type AuthType = "none" | "bearerToken" | "basicAuth" | "apiKey";
+export type AuthType = "none" | "bearerToken" | "basicAuth" | "apiKey" | "oauth2";
 export type ApiKeyLocation = "header" | "query";
+export type OAuthGrantType = "authorization_code" | "client_credentials";
+
+export interface OAuth2Config {
+  grantType: OAuthGrantType;
+  clientId: string;
+  clientSecret: string;
+  authUrl: string;
+  tokenUrl: string;
+  scopes: string;
+  accessToken: string;
+  refreshToken: string;
+  tokenExpiry: string | null;
+}
 
 export type AuthConfig =
   | { none: Record<string, never> }
   | { bearerToken: { _0: { token: string } } }
   | { basicAuth: { _0: { username: string; password: string } } }
-  | { apiKey: { _0: { key: string; value: string; location: ApiKeyLocation } } };
+  | { apiKey: { _0: { key: string; value: string; location: ApiKeyLocation } } }
+  | { oauth2: OAuth2Config };
+
+export interface ExtractionRule {
+  id: string;
+  variableName: string;
+  jsonPath: string;
+  isEnabled: boolean;
+}
 
 export interface SavedRequest {
   id: string;
@@ -47,6 +69,7 @@ export interface SavedRequest {
   sortOrder: number;
   createdAt: string;
   updatedAt: string;
+  responseExtractions?: ExtractionRule[];
 }
 
 export interface RequestCollection {
@@ -94,6 +117,12 @@ export interface ResponseRecord {
   contentType: string;
 }
 
+export interface ProxyConfig {
+  proxyUrl: string;
+  noProxy: string;
+  enabled: boolean;
+}
+
 export interface AppState {
   collections: RequestCollection[];
   environments: RequestEnvironment[];
@@ -101,9 +130,12 @@ export interface AppState {
   lastSelectedCollectionId: string | null;
   lastSelectedRequestId: string | null;
   history: RequestHistoryEntry[];
+  proxyConfig?: ProxyConfig;
 }
 
-export type EditorTab = "params" | "headers" | "auth" | "body";
+export type CodegenLanguage = "javascript-fetch" | "javascript-axios" | "python-requests" | "curl";
+
+export type EditorTab = "params" | "headers" | "auth" | "body" | "extract";
 export type ResponseTab = "body" | "headers";
 
 export const HTTP_METHODS: HttpMethod[] = [
@@ -112,6 +144,8 @@ export const HTTP_METHODS: HttpMethod[] = [
   "PUT",
   "PATCH",
   "DELETE",
+  "HEAD",
+  "OPTIONS",
 ];
 
 export const METHOD_COLORS: Record<HttpMethod, string> = {
@@ -120,7 +154,19 @@ export const METHOD_COLORS: Record<HttpMethod, string> = {
   PUT: "var(--color-method-put)",
   PATCH: "var(--color-method-patch)",
   DELETE: "var(--color-method-delete)",
+  HEAD: "var(--color-method-head)",
+  OPTIONS: "var(--color-method-options)",
 };
+
+// Helper: create an empty ExtractionRule
+export function createEmptyExtractionRule(): ExtractionRule {
+  return {
+    id: crypto.randomUUID(),
+    variableName: "",
+    jsonPath: "",
+    isEnabled: true,
+  };
+}
 
 // Helper: create an empty KeyValuePair
 export function createEmptyPair(): KeyValuePair {
@@ -145,7 +191,13 @@ export function getBodyType(body: RequestBody): BodyType {
   if ("formData" in body) return "formData";
   if ("rawText" in body) return "rawText";
   if ("multipart" in body) return "multipart";
+  if ("graphql" in body) return "graphql";
   return "none";
+}
+
+export function getGraphQLContent(body: RequestBody): { query: string; variables: string } {
+  if ("graphql" in body) return body.graphql;
+  return { query: "", variables: "" };
 }
 
 export function getMultipartFields(body: RequestBody): MultipartField[] {
@@ -182,6 +234,7 @@ export function buildRequestBody(
   rawText: string,
   formPairs: KeyValuePair[],
   multipartFields?: MultipartField[],
+  graphql?: { query: string; variables: string },
 ): RequestBody {
   switch (type) {
     case "none":
@@ -194,6 +247,8 @@ export function buildRequestBody(
       return { rawText: { _0: rawText } };
     case "multipart":
       return { multipart: { _0: multipartFields ?? [] } };
+    case "graphql":
+      return { graphql: graphql ?? { query: "", variables: "" } };
   }
 }
 
@@ -208,6 +263,7 @@ export function getAuthType(auth?: AuthConfig): AuthType {
   if ("bearerToken" in auth) return "bearerToken";
   if ("basicAuth" in auth) return "basicAuth";
   if ("apiKey" in auth) return "apiKey";
+  if ("oauth2" in auth) return "oauth2";
   return "none";
 }
 
@@ -216,6 +272,7 @@ export function buildAuthConfig(
   bearer: { token: string },
   basic: { username: string; password: string },
   apiKey: { key: string; value: string; location: ApiKeyLocation },
+  oauth2?: OAuth2Config,
 ): AuthConfig {
   switch (type) {
     case "none":
@@ -226,8 +283,38 @@ export function buildAuthConfig(
       return { basicAuth: { _0: { username: basic.username, password: basic.password } } };
     case "apiKey":
       return { apiKey: { _0: { key: apiKey.key, value: apiKey.value, location: apiKey.location } } };
+    case "oauth2":
+      return { oauth2: oauth2 ?? createEmptyOAuth2Config() };
   }
 }
+
+export function createEmptyOAuth2Config(): OAuth2Config {
+  return {
+    grantType: "client_credentials",
+    clientId: "",
+    clientSecret: "",
+    authUrl: "",
+    tokenUrl: "",
+    scopes: "",
+    accessToken: "",
+    refreshToken: "",
+    tokenExpiry: null,
+  };
+}
+
+// Collection Runner types
+export interface CollectionRunResult {
+  requestId: string;
+  requestName: string;
+  method: HttpMethod;
+  url: string;
+  statusCode: number | null;
+  elapsedTime: number | null;
+  passed: boolean;
+  errorMessage?: string;
+}
+
+export type CollectionRunStatus = "idle" | "running" | "stopped" | "completed";
 
 // WebSocket types
 export type ConnectionStatus = "disconnected" | "connecting" | "connected";

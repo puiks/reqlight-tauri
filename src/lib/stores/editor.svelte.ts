@@ -3,24 +3,31 @@ import {
   buildAuthConfig,
   buildRequestBody,
   createEmptyAuth,
+  createEmptyExtractionRule,
   createEmptyMultipartField,
+  createEmptyOAuth2Config,
   createEmptyPair,
   getAuthType,
   getBodyContent,
   getBodyType,
   getFormPairs,
+  getGraphQLContent,
   getMultipartFields,
   type ApiKeyLocation,
   type AuthType,
   type BodyType,
   type EditorTab,
+  type ExtractionRule,
   type HttpMethod,
   type KeyValuePair,
   type MultipartField,
+  type OAuth2Config,
+  type OAuthGrantType,
   type ResponseRecord,
   type ResponseTab,
   type SavedRequest,
 } from "../types";
+import { extractByPath } from "../utils/jsonpath";
 import { DEFAULT_REQUEST_TIMEOUT } from "../constants";
 import { appStore } from "./app.svelte";
 import { environmentStore } from "./environment.svelte";
@@ -39,6 +46,9 @@ class EditorStore {
   rawBody = $state("");
   formPairs = $state<KeyValuePair[]>([createEmptyPair()]);
   multipartFields = $state<MultipartField[]>([createEmptyMultipartField()]);
+  graphqlQuery = $state("");
+  graphqlVariables = $state("");
+  extractionRules = $state<ExtractionRule[]>([createEmptyExtractionRule()]);
 
   // Auth fields
   authType = $state<AuthType>("none");
@@ -48,11 +58,21 @@ class EditorStore {
   apiKeyKey = $state("");
   apiKeyValue = $state("");
   apiKeyLocation = $state<ApiKeyLocation>("header");
+  oauthGrantType = $state<OAuthGrantType>("client_credentials");
+  oauthClientId = $state("");
+  oauthClientSecret = $state("");
+  oauthAuthUrl = $state("");
+  oauthTokenUrl = $state("");
+  oauthScopes = $state("");
+  oauthAccessToken = $state("");
+  oauthRefreshToken = $state("");
+  oauthTokenExpiry = $state<string | null>(null);
 
   // UI state
   activeEditorTab = $state<EditorTab>("params");
   activeResponseTab = $state<ResponseTab>("body");
   response = $state<ResponseRecord | null>(null);
+  pinnedResponse = $state<ResponseRecord | null>(null);
   isLoading = $state(false);
   errorMessage = $state<string | null>(null);
   isDirty = $state(false);
@@ -100,6 +120,12 @@ class EditorStore {
     this.multipartFields = getMultipartFields(request.body).length
       ? [...getMultipartFields(request.body)]
       : [createEmptyMultipartField()];
+    const gql = getGraphQLContent(request.body);
+    this.graphqlQuery = gql.query;
+    this.graphqlVariables = gql.variables;
+    this.extractionRules = request.responseExtractions?.length
+      ? [...request.responseExtractions]
+      : [createEmptyExtractionRule()];
     this.loadAuth(request.auth);
     this.response = null;
     this.errorMessage = null;
@@ -114,6 +140,7 @@ class EditorStore {
     this.apiKeyKey = "";
     this.apiKeyValue = "";
     this.apiKeyLocation = "header";
+    this.resetOAuth2Fields();
     if (auth && "bearerToken" in auth) {
       this.bearerToken = auth.bearerToken._0.token;
     } else if (auth && "basicAuth" in auth) {
@@ -123,6 +150,17 @@ class EditorStore {
       this.apiKeyKey = auth.apiKey._0.key;
       this.apiKeyValue = auth.apiKey._0.value;
       this.apiKeyLocation = auth.apiKey._0.location;
+    } else if (auth && "oauth2" in auth) {
+      const o = auth.oauth2;
+      this.oauthGrantType = o.grantType;
+      this.oauthClientId = o.clientId;
+      this.oauthClientSecret = o.clientSecret;
+      this.oauthAuthUrl = o.authUrl;
+      this.oauthTokenUrl = o.tokenUrl;
+      this.oauthScopes = o.scopes;
+      this.oauthAccessToken = o.accessToken;
+      this.oauthRefreshToken = o.refreshToken;
+      this.oauthTokenExpiry = o.tokenExpiry;
     }
   }
 
@@ -142,16 +180,21 @@ class EditorStore {
         this.rawBody,
         this.formPairs.filter((p) => !p.key && !p.value ? false : true),
         this.multipartFields.filter((f) => !f.name ? false : true),
+        { query: this.graphqlQuery, variables: this.graphqlVariables },
       ),
       auth: buildAuthConfig(
         this.authType,
         { token: this.bearerToken },
         { username: this.basicUsername, password: this.basicPassword },
         { key: this.apiKeyKey, value: this.apiKeyValue, location: this.apiKeyLocation },
+        this.buildOAuth2Config(),
       ),
       sortOrder: 0,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
+      responseExtractions: this.extractionRules.filter(
+        (r) => r.variableName || r.jsonPath,
+      ),
     };
   }
 
@@ -185,12 +228,14 @@ class EditorStore {
         this.rawBody,
         this.formPairs,
         this.multipartFields,
+        { query: this.graphqlQuery, variables: this.graphqlVariables },
       );
       const auth = buildAuthConfig(
         this.authType,
         { token: this.bearerToken },
         { username: this.basicUsername, password: this.basicPassword },
         { key: this.apiKeyKey, value: this.apiKeyValue, location: this.apiKeyLocation },
+        this.buildOAuth2Config(),
       );
       const result = await sendRequest({
         method: this.method,
@@ -202,8 +247,10 @@ class EditorStore {
         timeoutSecs: this.timeoutSecs,
         followRedirects: this.followRedirects,
         environment: environmentStore.activeEnvironment,
+        proxyConfig: appStore.proxyConfig.enabled ? appStore.proxyConfig : undefined,
       });
       this.response = result;
+      this.applyExtractions(result);
 
       // Add to history with full request snapshot for replay
       historyStore.addEntry({
@@ -234,6 +281,29 @@ class EditorStore {
     this.isLoading = false;
   }
 
+  // Apply extraction rules to response and write to environment
+  private applyExtractions(response: ResponseRecord) {
+    if (!response.bodyString || !response.isJson) return;
+    const enabledRules = this.extractionRules.filter(
+      (r) => r.isEnabled && r.variableName && r.jsonPath,
+    );
+    if (enabledRules.length === 0) return;
+
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(response.bodyString);
+    } catch {
+      return;
+    }
+
+    for (const rule of enabledRules) {
+      const value = extractByPath(parsed, rule.jsonPath);
+      if (value !== undefined) {
+        environmentStore.setVariable(rule.variableName, value);
+      }
+    }
+  }
+
   // Reset to empty
   reset() {
     this.requestId = null;
@@ -247,6 +317,9 @@ class EditorStore {
     this.rawBody = "";
     this.formPairs = [createEmptyPair()];
     this.multipartFields = [createEmptyMultipartField()];
+    this.graphqlQuery = "";
+    this.graphqlVariables = "";
+    this.extractionRules = [createEmptyExtractionRule()];
     this.authType = "none";
     this.bearerToken = "";
     this.basicUsername = "";
@@ -254,9 +327,47 @@ class EditorStore {
     this.apiKeyKey = "";
     this.apiKeyValue = "";
     this.apiKeyLocation = "header";
+    this.resetOAuth2Fields();
     this.response = null;
+    this.pinnedResponse = null;
     this.errorMessage = null;
     this.isDirty = false;
+  }
+
+  private resetOAuth2Fields() {
+    this.oauthGrantType = "client_credentials";
+    this.oauthClientId = "";
+    this.oauthClientSecret = "";
+    this.oauthAuthUrl = "";
+    this.oauthTokenUrl = "";
+    this.oauthScopes = "";
+    this.oauthAccessToken = "";
+    this.oauthRefreshToken = "";
+    this.oauthTokenExpiry = null;
+  }
+
+  pinResponse() {
+    if (this.response) {
+      this.pinnedResponse = { ...this.response };
+    }
+  }
+
+  unpinResponse() {
+    this.pinnedResponse = null;
+  }
+
+  buildOAuth2Config(): OAuth2Config {
+    return {
+      grantType: this.oauthGrantType,
+      clientId: this.oauthClientId,
+      clientSecret: this.oauthClientSecret,
+      authUrl: this.oauthAuthUrl,
+      tokenUrl: this.oauthTokenUrl,
+      scopes: this.oauthScopes,
+      accessToken: this.oauthAccessToken,
+      refreshToken: this.oauthRefreshToken,
+      tokenExpiry: this.oauthTokenExpiry,
+    };
   }
 }
 

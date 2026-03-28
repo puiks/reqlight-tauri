@@ -1,11 +1,15 @@
+pub mod code_generator;
 pub mod collection_export;
 pub mod collection_import;
 pub mod collection_io;
 pub(crate) mod collection_types;
 pub mod curl_exporter;
 pub mod curl_parser;
+pub mod har_import;
 pub mod http_client;
 pub mod interpolator;
 pub mod keychain;
+pub mod oauth;
+pub mod openapi_import;
 pub mod persistence;
 pub mod websocket;

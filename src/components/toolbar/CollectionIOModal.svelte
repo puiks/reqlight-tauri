@@ -8,12 +8,14 @@
     exportPostmanCollection,
     importPostmanEnvironment,
     exportPostmanEnvironment,
+    importOpenapi,
+    importHar,
   } from "../../lib/commands";
 
   let { onclose }: { onclose: () => void } = $props();
 
   let activeTab = $state<"import" | "export">("import");
-  let importType = $state<"collection" | "environment">("collection");
+  let importType = $state<"collection" | "environment" | "openapi" | "har">("collection");
   let jsonInput = $state("");
   let isProcessing = $state(false);
   let errorMessage = $state<string | null>(null);
@@ -23,7 +25,18 @@
     isProcessing = true;
     errorMessage = null;
     try {
-      if (importType === "collection") {
+      if (importType === "openapi") {
+        const collections = await importOpenapi(jsonInput);
+        appStore.collections = [...appStore.collections, ...collections];
+        appStore.scheduleSave();
+        const count = collections.reduce((sum, c) => sum + c.requests.length, 0);
+        toastStore.show(`Imported ${collections.length} collection(s) with ${count} requests`);
+      } else if (importType === "har") {
+        const collection = await importHar(jsonInput);
+        appStore.collections = [...appStore.collections, collection];
+        appStore.scheduleSave();
+        toastStore.show(`Imported ${collection.requests.length} requests from HAR`);
+      } else if (importType === "collection") {
         const collection = await importPostmanCollection(jsonInput);
         appStore.collections = [...appStore.collections, collection];
         appStore.scheduleSave();
@@ -106,31 +119,43 @@
       <button class="tab" class:active={activeTab === "import"} onclick={() => { activeTab = "import"; exportResult = null; }}>
         Import
       </button>
-      <button class="tab" class:active={activeTab === "export"} onclick={() => { activeTab = "export"; errorMessage = null; }}>
+      <button class="tab" class:active={activeTab === "export"} onclick={() => { activeTab = "export"; errorMessage = null; if (importType === "openapi" || importType === "har") importType = "collection"; }}>
         Export
       </button>
     </div>
 
     <div class="type-bar">
       <button class="type-btn" class:active={importType === "collection"} onclick={() => (importType = "collection")}>
-        Collection
+        Postman Collection
       </button>
       <button class="type-btn" class:active={importType === "environment"} onclick={() => (importType = "environment")}>
-        Environment
+        Postman Environment
       </button>
+      {#if activeTab === "import"}
+        <button class="type-btn" class:active={importType === "openapi"} onclick={() => (importType = "openapi")}>
+          OpenAPI / Swagger
+        </button>
+        <button class="type-btn" class:active={importType === "har"} onclick={() => (importType = "har")}>
+          HAR
+        </button>
+      {/if}
     </div>
 
     {#if activeTab === "import"}
       <div class="import-section">
         <div class="file-upload">
           <label class="file-label">
-            Choose file or paste JSON below
-            <input type="file" accept=".json" onchange={handleFileUpload} class="file-input" />
+            Choose file or paste content below
+            <input type="file" accept={importType === "openapi" ? ".json,.yaml,.yml" : importType === "har" ? ".har,.json" : ".json"} onchange={handleFileUpload} class="file-input" />
           </label>
         </div>
         <textarea
           class="json-textarea"
-          placeholder="Paste Postman {importType === 'collection' ? 'Collection' : 'Environment'} JSON here..."
+          placeholder={importType === "openapi"
+            ? "Paste OpenAPI 3.x or Swagger 2.x spec (JSON or YAML)..."
+            : importType === "har"
+              ? "Paste HAR JSON here (exported from Chrome DevTools)..."
+              : `Paste Postman ${importType === "collection" ? "Collection" : "Environment"} JSON here...`}
           bind:value={jsonInput}
           spellcheck="false"
         ></textarea>

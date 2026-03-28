@@ -3,6 +3,7 @@ import type {
   AuthConfig,
   HttpMethod,
   KeyValuePair,
+  ProxyConfig,
   RequestBody,
   RequestEnvironment,
   ResponseRecord,
@@ -64,6 +65,7 @@ export async function sendRequest(params: {
   timeoutSecs?: number;
   followRedirects?: boolean;
   environment?: RequestEnvironment;
+  proxyConfig?: ProxyConfig;
 }): Promise<ResponseRecord> {
   return invoke<ResponseRecord>("send_request", params);
 }
@@ -127,12 +129,72 @@ export async function exportPostmanEnvironment(
   return invoke("export_postman_environment", { environment });
 }
 
+// OpenAPI Import
+export async function importOpenapi(
+  spec: string,
+): Promise<import("./types").RequestCollection[]> {
+  return invoke("import_openapi", { spec });
+}
+
+// HAR Import
+export async function importHar(
+  jsonStr: string,
+): Promise<import("./types").RequestCollection> {
+  return invoke("import_har", { jsonStr });
+}
+
+// Code Generation
+export async function generateCode(
+  request: SavedRequest,
+  language: string,
+  environment?: RequestEnvironment,
+): Promise<string> {
+  return invoke<string>("generate_code", { request, environment, language });
+}
+
+// OAuth 2.0
+export interface OAuthTokenResult {
+  accessToken: string;
+  refreshToken: string;
+  expiresIn: number | null;
+}
+
+export async function oauthClientCredentials(
+  tokenUrl: string,
+  clientId: string,
+  clientSecret: string,
+  scopes: string,
+): Promise<OAuthTokenResult> {
+  return invoke("oauth_client_credentials", { tokenUrl, clientId, clientSecret, scopes });
+}
+
+export async function oauthAuthorizationCode(params: {
+  authUrl: string;
+  tokenUrl: string;
+  clientId: string;
+  clientSecret: string;
+  scopes: string;
+}): Promise<OAuthTokenResult> {
+  return invoke("oauth_authorization_code", { params });
+}
+
+export async function oauthRefreshToken(
+  tokenUrl: string,
+  refreshToken: string,
+  clientId: string,
+  clientSecret: string,
+): Promise<OAuthTokenResult> {
+  return invoke("oauth_refresh_token", { tokenUrl, refreshToken, clientId, clientSecret });
+}
+
 // WebSocket
 export async function wsConnect(
   connectionId: string,
   url: string,
+  headers?: KeyValuePair[],
+  environment?: RequestEnvironment,
 ): Promise<void> {
-  return invoke("ws_connect", { connectionId, url });
+  return invoke("ws_connect", { connectionId, url, headers, environment });
 }
 
 export async function wsSend(

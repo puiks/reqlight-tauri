@@ -6,6 +6,11 @@
   import EmptyState from "../shared/EmptyState.svelte";
   import type { ResponseTab } from "../../lib/types";
 
+  let { ongeneratecode, oncompare }: { ongeneratecode?: () => void; oncompare?: () => void } = $props();
+
+  const hasPinned = $derived(editorStore.pinnedResponse !== null);
+  const canCompare = $derived(hasPinned && editorStore.response !== null);
+
   const tabs: { value: ResponseTab; label: string }[] = [
     { value: "body", label: "Body" },
     { value: "headers", label: "Headers" },
@@ -39,6 +44,26 @@
           {tab.label}
         </button>
       {/each}
+      <div class="tab-actions">
+        {#if canCompare && oncompare}
+          <button class="action-btn compare-btn" onclick={oncompare} title="Compare with pinned response">
+            Diff
+          </button>
+        {/if}
+        <button
+          class="action-btn pin-btn"
+          class:pinned={hasPinned}
+          onclick={() => hasPinned ? editorStore.unpinResponse() : editorStore.pinResponse()}
+          title={hasPinned ? "Unpin response" : "Pin this response for comparison"}
+        >
+          {hasPinned ? "Unpin" : "Pin"}
+        </button>
+        {#if ongeneratecode}
+          <button class="action-btn code-btn" onclick={ongeneratecode} title="Generate Code">
+            {"</>"}
+          </button>
+        {/if}
+      </div>
     </div>
 
     <div class="tab-content">
@@ -116,6 +141,34 @@
     color: var(--color-info);
     border-bottom-color: var(--color-info);
     font-weight: 600;
+  }
+  .tab-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-xs);
+    margin-left: auto;
+    padding-right: var(--sp-sm);
+  }
+  .action-btn {
+    font-size: var(--fs-caption);
+    padding: 2px var(--sp-sm);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+  }
+  .action-btn:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+  }
+  .pin-btn.pinned {
+    color: var(--color-info);
+    font-weight: 600;
+  }
+  .compare-btn {
+    color: var(--color-warning, #f59e0b);
+    font-weight: 500;
+  }
+  .code-btn {
+    font-family: var(--font-mono, monospace);
   }
   .tab-content {
     flex: 1;

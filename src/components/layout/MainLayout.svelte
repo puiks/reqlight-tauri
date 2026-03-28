@@ -3,13 +3,20 @@
   import Sidebar from "../sidebar/Sidebar.svelte";
   import RequestEditor from "../editor/RequestEditor.svelte";
   import ResponseView from "../response/ResponseView.svelte";
+  import type { RequestCollection } from "../../lib/types";
 
   let {
     onimportcurl,
     oncollectionio,
+    ongeneratecode,
+    oncompare,
+    onruncollection,
   }: {
     onimportcurl: () => void;
     oncollectionio: () => void;
+    ongeneratecode?: () => void;
+    oncompare?: () => void;
+    onruncollection?: (collection: RequestCollection) => void;
   } = $props();
 
   let sidebarWidth = $state(220);
@@ -57,7 +64,7 @@
 >
   {#if appStore.sidebarVisible}
     <div class="sidebar-pane" style="width: {sidebarWidth}px">
-      <Sidebar {oncollectionio} />
+      <Sidebar {oncollectionio} {onruncollection} />
     </div>
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div class="drag-handle" onmousedown={startSidebarDrag}></div>
@@ -71,7 +78,7 @@
   <div class="drag-handle" onmousedown={startSplitDrag}></div>
 
   <div class="response-pane" style="flex: {1 - editorRatio}">
-    <ResponseView />
+    <ResponseView {ongeneratecode} {oncompare} />
   </div>
 </div>
 

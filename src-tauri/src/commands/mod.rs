@@ -1,6 +1,10 @@
+pub mod codegen;
 pub mod collection_io;
 pub mod curl;
+pub mod har;
 pub mod http;
 pub mod keychain;
+pub mod oauth;
+pub mod openapi;
 pub mod persistence;
 pub mod websocket;

@@ -6,7 +6,9 @@ mod test_utils;
 
 use std::sync::Arc;
 
-use commands::{collection_io, curl, http, keychain, persistence, websocket};
+use commands::{
+    codegen, collection_io, curl, har, http, keychain, oauth, openapi, persistence, websocket,
+};
 use services::websocket::WsManager;
 use tokio::sync::Notify;
 
@@ -43,11 +45,21 @@ pub fn run() {
             websocket::ws_connect,
             websocket::ws_send,
             websocket::ws_disconnect,
+            // Code Generation
+            codegen::generate_code,
             // Collection I/O
             collection_io::import_postman_collection,
             collection_io::export_postman_collection,
             collection_io::import_postman_environment,
             collection_io::export_postman_environment,
+            // OpenAPI Import
+            openapi::import_openapi,
+            // HAR Import
+            har::import_har,
+            // OAuth
+            oauth::oauth_client_credentials,
+            oauth::oauth_authorization_code,
+            oauth::oauth_refresh_token,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
