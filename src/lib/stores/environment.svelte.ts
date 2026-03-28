@@ -55,6 +55,18 @@ class EnvironmentStore extends ObservableStore {
     this.activeEnvironmentId = id;
     this.notify();
   }
+
+  setVariable(key: string, value: string) {
+    const env = this.activeEnvironment;
+    if (!env) return;
+    const existing = env.variables.find((v) => v.key === key);
+    if (existing) {
+      existing.value = value;
+    } else {
+      env.variables.push({ ...createEmptyPair(), key, value });
+    }
+    this.updateEnvironment(env);
+  }
 }
 
 export const environmentStore = new EnvironmentStore();

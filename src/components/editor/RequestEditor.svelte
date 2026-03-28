@@ -5,6 +5,7 @@
   import KeyValueEditor from "./KeyValueEditor.svelte";
   import BodyEditor from "./BodyEditor.svelte";
   import AuthEditor from "./AuthEditor.svelte";
+  import ExtractionEditor from "./ExtractionEditor.svelte";
   import WebSocketPanel from "./WebSocketPanel.svelte";
   import EmptyState from "../shared/EmptyState.svelte";
 
@@ -61,6 +62,8 @@
         <AuthEditor />
       {:else if editorStore.activeEditorTab === "body"}
         <BodyEditor />
+      {:else if editorStore.activeEditorTab === "extract"}
+        <ExtractionEditor />
       {/if}
     </div>
   {:else}

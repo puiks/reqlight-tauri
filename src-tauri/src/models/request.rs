@@ -46,6 +46,8 @@ pub enum HttpMethod {
     Put,
     Patch,
     Delete,
+    Head,
+    Options,
 }
 
 impl Serialize for HttpMethod {
@@ -63,6 +65,8 @@ impl<'de> Deserialize<'de> for HttpMethod {
             "PUT" => Ok(HttpMethod::Put),
             "PATCH" => Ok(HttpMethod::Patch),
             "DELETE" => Ok(HttpMethod::Delete),
+            "HEAD" => Ok(HttpMethod::Head),
+            "OPTIONS" => Ok(HttpMethod::Options),
             _ => Err(serde::de::Error::custom(format!(
                 "Unknown HTTP method: {s}"
             ))),
@@ -78,6 +82,8 @@ impl HttpMethod {
             HttpMethod::Put => "PUT",
             HttpMethod::Patch => "PATCH",
             HttpMethod::Delete => "DELETE",
+            HttpMethod::Head => "HEAD",
+            HttpMethod::Options => "OPTIONS",
         }
     }
 }
@@ -99,6 +105,10 @@ pub enum RequestBody {
     FormData(Vec<KeyValuePair>),
     RawText(String),
     Multipart(Vec<MultipartField>),
+    GraphQL {
+        query: String,
+        variables: String,
+    },
 }
 
 /// A single field in a multipart form.
@@ -137,6 +147,12 @@ impl Serialize for RequestBody {
             }
             RequestBody::Multipart(fields) => {
                 map.serialize_entry("multipart", &serde_json::json!({"_0": fields}))?;
+            }
+            RequestBody::GraphQL { query, variables } => {
+                map.serialize_entry(
+                    "graphql",
+                    &serde_json::json!({"query": query, "variables": variables}),
+                )?;
             }
         }
         map.end()
@@ -178,6 +194,18 @@ impl<'de> Deserialize<'de> for RequestBody {
                 .map(|v| serde_json::from_value(v.clone()).unwrap_or_default())
                 .unwrap_or_default();
             Ok(RequestBody::Multipart(fields))
+        } else if let Some(inner) = obj.get("graphql") {
+            let query = inner
+                .get("query")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let variables = inner
+                .get("variables")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            Ok(RequestBody::GraphQL { query, variables })
         } else {
             Ok(RequestBody::None)
         }
@@ -210,6 +238,8 @@ pub struct SavedRequest {
     pub created_at: String,
     #[serde(default = "now_iso8601")]
     pub updated_at: String,
+    #[serde(default)]
+    pub response_extractions: Vec<super::extraction::ExtractionRule>,
 }
 
 fn default_request_name() -> String {
@@ -234,6 +264,7 @@ impl Default for SavedRequest {
             sort_order: 0,
             created_at: now_iso8601(),
             updated_at: now_iso8601(),
+            response_extractions: vec![],
         }
     }
 }

@@ -7,6 +7,7 @@
     { value: "headers", label: "Headers" },
     { value: "auth", label: "Auth" },
     { value: "body", label: "Body" },
+    { value: "extract", label: "Extract" },
   ];
 </script>
 
