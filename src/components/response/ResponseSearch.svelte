@@ -59,8 +59,8 @@
         ? `${activeMatchIndex + 1}/${searchResults.length}`
         : "0 results"}
     </span>
-    <button class="nav-btn" onclick={prevMatch} title="Previous (Shift+Enter)">▲</button>
-    <button class="nav-btn" onclick={nextMatch} title="Next (Enter)">▼</button>
+    <button class="nav-btn" onclick={prevMatch} title="Previous (Shift+Enter)" aria-label="Previous match">▲</button>
+    <button class="nav-btn" onclick={nextMatch} title="Next (Enter)" aria-label="Next match">▼</button>
   {/if}
 </div>
 

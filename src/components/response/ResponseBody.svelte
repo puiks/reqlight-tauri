@@ -117,7 +117,7 @@
       </button>
     {/if}
     <span class="content-type-badge">{contentCategory()}</span>
-    <button class="search-btn" onclick={toggleSearch} title="Search (⌘F)">
+    <button class="search-btn" onclick={toggleSearch} title="Search (⌘F)" aria-label="Search">
       ⌕
     </button>
     <button class="copy-btn" onclick={handleCopy} title="Copy response body">

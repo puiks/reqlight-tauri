@@ -72,6 +72,7 @@
       <button
         class="run-btn"
         title="Run Collection"
+        aria-label="Run Collection"
         onclick={(e) => { e.stopPropagation(); onrun?.(); }}
       >▶</button>
     {/if}
@@ -79,6 +80,7 @@
       <button
         class="delete-btn"
         title="Delete Collection"
+        aria-label="Delete Collection"
         onclick={(e) => { e.stopPropagation(); ondelete?.(); }}
       >✕</button>
     {/if}

@@ -38,7 +38,7 @@
   .overlay {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.4);
+    background: var(--overlay-backdrop);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -50,7 +50,7 @@
     border-radius: var(--radius-lg);
     padding: var(--sp-xl);
     min-width: 320px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    box-shadow: var(--shadow-modal);
   }
   h3 {
     font-size: var(--fs-callout);
