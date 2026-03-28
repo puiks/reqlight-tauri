@@ -114,6 +114,13 @@ pub fn interpolate_request(
                 })
                 .collect(),
         ),
+        RequestBody::GraphQL {
+            query,
+            variables: vars,
+        } => RequestBody::GraphQL {
+            query: interpolate(query, variables),
+            variables: interpolate(vars, variables),
+        },
         RequestBody::None => RequestBody::None,
     };
 
@@ -139,6 +146,27 @@ pub fn interpolate_auth(auth: &AuthConfig, variables: &[KeyValuePair]) -> AuthCo
             key: interpolate(key, variables),
             value: interpolate(value, variables),
             location: location.clone(),
+        },
+        AuthConfig::OAuth2 {
+            grant_type,
+            client_id,
+            client_secret,
+            auth_url,
+            token_url,
+            scopes,
+            access_token,
+            refresh_token,
+            token_expiry,
+        } => AuthConfig::OAuth2 {
+            grant_type: grant_type.clone(),
+            client_id: interpolate(client_id, variables),
+            client_secret: interpolate(client_secret, variables),
+            auth_url: interpolate(auth_url, variables),
+            token_url: interpolate(token_url, variables),
+            scopes: interpolate(scopes, variables),
+            access_token: interpolate(access_token, variables),
+            refresh_token: interpolate(refresh_token, variables),
+            token_expiry: token_expiry.clone(),
         },
     }
 }

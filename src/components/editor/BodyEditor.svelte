@@ -2,6 +2,7 @@
   import { editorStore } from "../../lib/stores/editor.svelte";
   import KeyValueEditor from "./KeyValueEditor.svelte";
   import MultipartEditor from "./MultipartEditor.svelte";
+  import GraphQLEditor from "./GraphQLEditor.svelte";
   import { validateJson } from "../../lib/utils/json-highlighter";
   import type { BodyType } from "../../lib/types";
 
@@ -11,6 +12,7 @@
     { value: "formData", label: "Form Data" },
     { value: "multipart", label: "Multipart" },
     { value: "rawText", label: "Raw Text" },
+    { value: "graphql", label: "GraphQL" },
   ];
 
   const jsonError = $derived(
@@ -71,6 +73,8 @@
         oninput={() => editorStore.markDirty()}
         spellcheck="false"
       ></textarea>
+    {:else if editorStore.bodyType === "graphql"}
+      <GraphQLEditor />
     {/if}
   </div>
 </div>

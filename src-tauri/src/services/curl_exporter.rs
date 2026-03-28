@@ -97,6 +97,12 @@ pub fn export(request: &SavedRequest, environment: Option<&RequestEnvironment>) 
         } if !key.is_empty() => {
             parts.push(format!("-H '{}'", shell_escape(&format!("{key}: {value}"))));
         }
+        AuthConfig::OAuth2 { access_token, .. } if !access_token.is_empty() => {
+            parts.push(format!(
+                "-H '{}'",
+                shell_escape(&format!("Authorization: Bearer {access_token}"))
+            ));
+        }
         _ => {}
     }
 
@@ -133,6 +139,15 @@ pub fn export(request: &SavedRequest, environment: Option<&RequestEnvironment>) 
                     ));
                 }
             }
+        }
+        RequestBody::GraphQL { query, variables } => {
+            let vars_value: serde_json::Value = if variables.trim().is_empty() {
+                serde_json::Value::Null
+            } else {
+                serde_json::from_str(variables).unwrap_or(serde_json::Value::Null)
+            };
+            let gql = serde_json::json!({ "query": query, "variables": vars_value });
+            parts.push(format!("-d '{}'", shell_escape(&gql.to_string())));
         }
         RequestBody::None => {}
     }
@@ -172,6 +187,7 @@ mod tests {
             sort_order: 0,
             created_at: String::new(),
             updated_at: String::new(),
+            response_extractions: vec![],
         }
     }
 

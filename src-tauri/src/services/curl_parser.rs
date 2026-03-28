@@ -32,6 +32,8 @@ pub fn parse(curl: &str) -> Result<SavedRequest, String> {
                         "PUT" => HttpMethod::Put,
                         "PATCH" => HttpMethod::Patch,
                         "DELETE" => HttpMethod::Delete,
+                        "HEAD" => HttpMethod::Head,
+                        "OPTIONS" => HttpMethod::Options,
                         _ => HttpMethod::Get,
                     };
                 }

@@ -159,6 +159,7 @@ mod tests {
                 sort_order: 0,
                 created_at: String::new(),
                 updated_at: String::new(),
+                response_extractions: vec![],
             }],
             sort_order: 0,
             created_at: String::new(),
@@ -243,6 +244,7 @@ mod tests {
                     sort_order: 0,
                     created_at: String::new(),
                     updated_at: String::new(),
+                    response_extractions: vec![],
                 },
                 SavedRequest {
                     id: Uuid::new_v4(),
@@ -258,6 +260,7 @@ mod tests {
                     sort_order: 1,
                     created_at: String::new(),
                     updated_at: String::new(),
+                    response_extractions: vec![],
                 },
             ],
             sort_order: 0,
