@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vite-plus/test'
 import type { RequestCollection, SavedRequest } from '../types'
 import { appStore } from './app.svelte'
 

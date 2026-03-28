@@ -84,7 +84,7 @@ function computeLCS(a: string[], b: string[]): string[] {
     return simpleLCS(a, b)
   }
 
-  const dp: number[][] = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0))
+  const dp: number[][] = Array.from({ length: m + 1 }, () => Array.from({ length: n + 1 }, () => 0))
 
   for (let i = 1; i <= m; i++) {
     for (let j = 1; j <= n; j++) {

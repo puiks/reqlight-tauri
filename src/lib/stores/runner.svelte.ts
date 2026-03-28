@@ -53,11 +53,6 @@ class RunnerStore {
       const request = collection.requests[i]
       const result = await this.executeRequest(request)
       this.results = [...this.results, result]
-
-      // Apply extraction rules if any
-      if (result.statusCode !== null && request.responseExtractions?.length) {
-        // We need the full response for extraction — it was captured in executeRequest
-      }
     }
 
     this.currentIndex = this.totalRequests

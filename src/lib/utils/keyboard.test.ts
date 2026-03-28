@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 import { initKeyboardShortcuts, registerShortcut } from './keyboard'
 
 describe('keyboard shortcuts', () => {

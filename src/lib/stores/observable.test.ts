@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vite-plus/test'
 import { ObservableStore } from './observable.svelte'
 
 class TestStore extends ObservableStore {

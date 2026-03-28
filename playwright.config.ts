@@ -1,17 +1,17 @@
-import { defineConfig } from "@playwright/test";
+import { defineConfig } from '@playwright/test'
 
 export default defineConfig({
-  testDir: "./e2e",
+  testDir: './e2e',
   timeout: 30_000,
   retries: 0,
   use: {
-    baseURL: "http://localhost:1420",
+    baseURL: 'http://localhost:1420',
     headless: true,
   },
   webServer: {
-    command: "pnpm dev --port 1420",
+    command: 'pnpm dev --port 1420',
     port: 1420,
     reuseExistingServer: !process.env.CI,
     timeout: 30_000,
   },
-});
+})

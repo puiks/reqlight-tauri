@@ -25,15 +25,15 @@ A lightweight, cross-platform HTTP client built with [Tauri](https://tauri.app/)
 
 ## Tech Stack
 
-| Layer | Technology |
-|-------|-----------|
-| Backend | Rust + [Tauri v2](https://v2.tauri.app/) |
-| HTTP | [reqwest](https://docs.rs/reqwest) + rustls |
+| Layer     | Technology                                             |
+| --------- | ------------------------------------------------------ |
+| Backend   | Rust + [Tauri v2](https://v2.tauri.app/)               |
+| HTTP      | [reqwest](https://docs.rs/reqwest) + rustls            |
 | WebSocket | [tokio-tungstenite](https://docs.rs/tokio-tungstenite) |
-| Secrets | [keyring](https://docs.rs/keyring) (cross-platform) |
-| Frontend | [Svelte 5](https://svelte.dev/) + TypeScript |
-| Styling | Pure CSS + CSS Variables (zero dependencies) |
-| Build | Vite + Cargo |
+| Secrets   | [keyring](https://docs.rs/keyring) (cross-platform)    |
+| Frontend  | [Svelte 5](https://svelte.dev/) + TypeScript           |
+| Styling   | Pure CSS + CSS Variables (zero dependencies)           |
+| Build     | Vite + Cargo                                           |
 
 ## Getting Started
 

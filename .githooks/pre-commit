@@ -1,0 +1,6 @@
+#!/bin/sh
+# Pre-commit hook: ensure code passes format and lint checks
+# Loads shell profile to pick up vp CLI path
+. "$HOME/.zshrc" 2>/dev/null || . "$HOME/.bashrc" 2>/dev/null || true
+
+vp check

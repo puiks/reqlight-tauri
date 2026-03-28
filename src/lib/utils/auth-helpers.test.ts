@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vite-plus/test'
 import type { AuthConfig } from '../types'
 import { buildOAuth2ConfigFromFields, defaultOAuth2Fields, parseAuthConfig } from './auth-helpers'
 

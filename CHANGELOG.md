@@ -7,9 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-03-29
+
+### Changed
+
+- Migrate frontend toolchain from Vite 6 + Biome to Vite+ (Vite 8 + Oxlint + Oxfmt)
+- Add pre-commit hooks via Vite+ staged config (replaces manual checks)
+- Update CI workflow to use `vp` CLI instead of standalone pnpm/node setup
+
 ## [0.4.0] - 2026-03-29
 
 ### Added
+
 - Proxy settings: configurable HTTP proxy with URL and no-proxy list
 - Code generation: export requests as JavaScript fetch, axios, Python requests, or cURL
 - Response variable extraction: define JSONPath rules to extract values into environment variables
@@ -25,11 +34,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - WebSocket environment variable interpolation in URLs and headers
 
 ### Changed
+
 - CLAUDE.md unified to English with added commit discipline rules
 
 ## [0.3.3] - 2026-03-27
 
 ### Added
+
 - Contextual action placement: cURL import in URL bar, collection I/O in sidebar header
 - Hover delete buttons (✕) on collections and requests with confirmation dialog
 - Search now matches collection names (shows all child requests when matched)
@@ -39,17 +50,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Linked history entries visually marked with blue left border
 
 ### Changed
+
 - Default editor:response panel ratio from 50:50 to 70:30
 - Toolbar buttons enlarged with hover states; removed low-frequency options from URL bar
 - Environment picker gear icon replaced with "Manage" text button
 - Collection/history chevron icons enlarged for better readability
 
 ### Fixed
+
 - History replay not rendering in editor (requestId was set to null)
 
 ## [0.3.1] - 2026-03-27
 
 ### Added
+
 - Custom app icon
 - WebSocket support (connect, send text messages, view message stream)
 - Automatic Cookie jar (cookies persist across requests within a session)
@@ -62,16 +76,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Redirect control toggle
 
 ### Changed
+
 - Removed Ubuntu/Linux from CI and release builds
 - Removed low-value tests
 - Refactored large files, extracted shared utils, cleaned dependencies
 
 ### Fixed
+
 - API Key with query location was not appended to the URL
 
 ## [0.1.0] - 2025-03-27
 
 ### Added
+
 - HTTP requests: GET, POST, PUT, PATCH, DELETE
 - Query parameters, custom headers, multiple body types (JSON, Form Data, Raw Text)
 - Authentication: Bearer Token, Basic Auth, API Key (header or query)

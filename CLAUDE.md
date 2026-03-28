@@ -2,9 +2,10 @@
 
 ## Tech Stack
 
-- **Frontend**: Svelte 5 (runes) + TypeScript + Vite
+- **Frontend**: Svelte 5 (runes) + TypeScript + Vite+ (Vite 8 + Vitest + Oxlint + Oxfmt)
 - **Backend**: Rust + Tauri v2
-- **Package Manager**: pnpm
+- **Toolchain**: Vite+ (`vp` CLI) — unified dev/test/lint/fmt
+- **Package Manager**: pnpm (managed by `vp`)
 - **Icons**: CSS-based (inline SVG)
 
 ## Architecture & Directory Structure
@@ -91,7 +92,7 @@ src-tauri/src/                # Rust Backend
 - **All new features must have tests written before implementation (TDD).**
 - Rust tests go in `#[cfg(test)] mod tests {}` at the bottom of each module file. If tests push the file beyond 300 lines, extract them to a `_tests.rs` file.
 - Frontend tests use vitest + jsdom, co-located with source files, named `*.test.ts`.
-- Before committing, ensure `cargo test`, `pnpm test`, and `pnpm check` all pass.
+- Before committing, ensure `cargo test`, `vp test run`, and `vp check` all pass.
 - **Rust minimum coverage**: All modules under `services/` that contain pure logic must have unit tests. Pure I/O wrappers (e.g., keychain) are exempt but must include a comment explaining why.
 - **Frontend minimum coverage**: All `lib/utils/` modules must have unit tests. **Every new `.ts` utility file must have a corresponding `.test.ts` — no exceptions.**
 - Frontend component tests (optional) use `@testing-library/svelte`, focusing on components with complex interaction logic.
@@ -122,7 +123,7 @@ src-tauri/src/                # Rust Backend
 ### Code Style
 
 - Rust: Use `cargo fmt` and `cargo clippy` with a zero-warning policy.
-- Frontend: Follow the project's existing Svelte 5 runes style (`$state`, `$derived`, `$effect`).
+- Frontend: Use `vp fmt` (Oxfmt) for formatting and `vp lint` (Oxlint) for linting. Follow the project's existing Svelte 5 runes style (`$state`, `$derived`, `$effect`).
 - Types: TypeScript uses strict mode; Rust avoids `unwrap()` (except in test code).
 
 ### Commit Discipline
@@ -142,9 +143,10 @@ cargo fmt --check          # Format check (CI will fail on diff)
 cargo clippy -- -D warnings  # Zero warnings
 cargo test                   # All passing
 
-# Frontend
-pnpm test                    # All passing
-pnpm check                   # svelte-check + TypeScript zero errors
+# Frontend (via Vite+)
+vp lint                      # Oxlint — zero warnings
+vp test run                  # All passing
+vp check                     # svelte-check + TypeScript zero errors
 ```
 
 - **`cargo fmt --check` is the most commonly forgotten.** Always run `cargo fmt` after modifying Rust code before committing.
@@ -173,28 +175,34 @@ pnpm check                   # svelte-check + TypeScript zero errors
 > These are real bugs encountered during development — listed here to prevent recurrence.
 
 ### Shell String Escaping
+
 - **cURL export must escape single quotes.** Use the `'it'\''s'` syntax (close quote, escaped quote, reopen quote).
 - Never embed user input directly into `format!("'{}'", user_input)` — single quotes will break shell syntax.
 
 ### Debounced Save & Window Close
+
 - `scheduleSave()` uses a 500ms debounce; pending saves may not fire when the window closes.
 - **Must call `flushSave()` in `beforeunload`** to force an immediate write.
 - `editorStore.saveIfDirty()` only saves editor state; `appStore.flushSave()` saves collections/environments/history. Both must be called.
 
 ### HTTP Header Case Sensitivity
+
 - `reqwest::HeaderMap` is case-insensitive — `contains_key("content-type")` and `contains_key("Content-Type")` return the same result.
 - **Always use `reqwest::header::CONTENT_TYPE` constants for key lookups** — avoid string literals to prevent ambiguity and clippy warnings.
 
 ### cURL Parser Method Inference
+
 - The `-d` data flag should auto-upgrade GET to POST, **but only if `-X` has not explicitly set a method and `-G` flag is not present**.
 - The `-G` flag forces GET but should not override an explicitly specified `-X` method.
 - Use three flags (`explicit_method`, `has_data`, `force_get`) to determine the final method — do not modify the method directly inside the parsing loop.
 
 ### Response Body Size
+
 - **Response body read size must be limited** (current cap: 5MB). Without a limit, large responses will freeze the frontend JSON renderer.
 - When truncated, set the `is_truncated` flag; the frontend should display a warning.
 
 ### Tauri Async Command Cancellation
+
 - Tauri v2's `#[tauri::command]` does not support native cancellation. To implement cancellation:
   1. Register an `Arc<Notify>` signal via `.manage()` in `lib.rs`
   2. Use `tokio::select!` in `send_request` to race execution against the cancel signal
@@ -202,31 +210,39 @@ pnpm check                   # svelte-check + TypeScript zero errors
 - **Do not fake cancellation** (just setting `isLoading = false`) — the backend request continues running, leaking resources.
 
 ### Rust Enum Default Derive
+
 - If an enum's Default impl simply returns the first variant, **use `#[derive(Default)]` + `#[default]` attribute** instead of a manual `impl Default`.
 - The clippy `derivable_impls` lint will error (hard error under `-D warnings` mode).
 
 ### pub use Re-exports
+
 - `pub use submodule::*` in `mod.rs` produces unused import warnings if no external code references it.
 - Only re-export types that are actually accessed from outside the module — do not blindly `pub use *`.
 
 ### Serde Backward Compatibility (Persisted Model Extension)
+
 - **When adding new fields to persisted structs, always add `#[serde(default)]`.** Otherwise, old data files will fail to deserialize, causing users to lose all data.
 - Vec-typed fields are naturally compatible (`Vec::default()` is an empty array), but scalar types other than Option need explicit `#[serde(default)]` or `#[serde(default = "...")]`.
 - After adding a field, search all manual construction sites for that struct (test helpers, import logic, etc.) and add initialization for the new field.
 
 ### Clippy Idiomatic Patterns
+
 - **Use `is_some_and(|x| ...)` instead of `map_or(false, |x| ...)`.** The clippy `unnecessary_map_or` lint will error.
 - **Use `is_none_or(|x| ...)` instead of `map_or(true, |x| ...)`.** Same reasoning.
 
 ## Build & Check Commands
 
 ```bash
-pnpm dev              # Start dev (Vite + Tauri)
-pnpm build            # Production frontend build
-pnpm check            # svelte-check + TypeScript
-pnpm test             # Run frontend unit tests (vitest)
-pnpm test:watch       # Watch mode for frontend tests
-pnpm test:coverage    # Frontend tests with coverage report
+# Frontend (via Vite+)
+vp dev                # Start dev server
+vp build              # Production frontend build
+vp check              # svelte-check + TypeScript
+vp test run           # Run frontend unit tests (vitest)
+vp test               # Watch mode for frontend tests
+vp test run --coverage  # Frontend tests with coverage report
+vp lint               # Oxlint linting
+vp fmt                # Oxfmt formatting
+vp preview            # Preview production build
 pnpm tauri dev        # Full Tauri dev mode
 pnpm tauri build      # Production Tauri build
 
@@ -242,6 +258,7 @@ cargo fmt             # Format
 ### Version Number Management
 
 Three version numbers must stay in sync, handled automatically by `scripts/bump.sh`:
+
 - `package.json` → `"version"`
 - `src-tauri/Cargo.toml` → `version`
 - `src-tauri/tauri.conf.json` → `"version"`
@@ -269,7 +286,7 @@ git push --follow-tags
 
 ### CI/CD Pipeline
 
-- **CI (`.github/workflows/ci.yml`)**: Runs automatically on PRs and pushes — fmt, clippy, cargo test, pnpm test, pnpm check, Playwright E2E.
+- **CI (`.github/workflows/ci.yml`)**: Runs automatically on PRs and pushes — fmt, clippy, cargo test, vp lint, vp test, vp check, Playwright E2E.
 - **Release (`.github/workflows/release.yml`)**: Triggered automatically when pushing a `v*` tag — builds macOS (Intel + ARM) and Windows installers, creates a GitHub Draft Release.
 - Draft Releases must be manually reviewed and published on GitHub.
 

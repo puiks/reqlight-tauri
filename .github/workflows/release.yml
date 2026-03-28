@@ -3,7 +3,7 @@ name: Release
 on:
   push:
     tags:
-      - "v*"
+      - 'v*'
   workflow_dispatch:
 
 permissions:
@@ -31,19 +31,17 @@ jobs:
             args: --target aarch64-apple-darwin
           - name: Windows
             runner: windows-latest
-            rust-targets: ""
-            args: ""
+            rust-targets: ''
+            args: ''
 
     steps:
       - uses: actions/checkout@v4
 
       - uses: pnpm/action-setup@v4
-        with:
-          version: 9
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: pnpm
 
       - uses: dtolnay/rust-toolchain@stable
