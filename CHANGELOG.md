@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- OAuth2 PKCE (S256) support for Authorization Code flow
+- OAuth2 state parameter validation for CSRF protection
+- Structured logging with daily rotating log files (tracing + tracing-appender)
+- JSONPath wildcard (`[*]`) and recursive descent (`..`) support for response extraction
+- Per-request timeout configuration (persisted with saved requests)
+- Comprehensive test coverage: OAuth error paths, WebSocket edge cases, command layer tests
+
+### Changed
+
+- Structured error types via `thiserror` (`AppError` enum replaces raw `String` errors in services)
+- HTTP client refactored from monolithic function into focused pipeline helpers
+- Frontend auth/extraction logic deduplicated between editor and runner stores
+- Magic constants centralized into dedicated `constants` module (Rust + TypeScript)
+
+### Fixed
+
+- Cargo.toml version out of sync with package.json and tauri.conf.json
+
 ## [0.5.0] - 2026-03-29
 
 ### Changed
