@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Proxy settings: configurable HTTP proxy with URL and no-proxy list
+- Code generation: export requests as JavaScript fetch, axios, Python requests, or cURL
+- Response variable extraction: define JSONPath rules to extract values into environment variables
+- Collection runner: execute all requests in a collection sequentially with pass/fail tracking
+- OAuth 2.0 authentication: Client Credentials and Authorization Code grant flows with token refresh
+- OpenAPI 3.x spec import: parse JSON/YAML specs into request collections
+- HAR file import: import HTTP Archive files as request collections
+- Response snapshot diff: pin a response and compare side-by-side with the latest
+- GraphQL request support: dedicated query and variables editor
+- HEAD and OPTIONS HTTP methods
+- WebSocket custom headers: attach headers to the WebSocket handshake
+- WebSocket auto-reconnect: exponential backoff with max 5 attempts
+- WebSocket environment variable interpolation in URLs and headers
+
+### Changed
+- CLAUDE.md unified to English with added commit discipline rules
+
 ## [0.3.3] - 2026-03-27
 
 ### Added
