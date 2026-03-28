@@ -41,7 +41,7 @@
     border-radius: 50%;
     background: var(--color-error);
     color: white;
-    font-size: 24px;
+    font-size: var(--fs-title2);
     font-weight: 700;
     display: flex;
     align-items: center;

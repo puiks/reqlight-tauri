@@ -246,7 +246,7 @@
     color: var(--text-primary);
   }
   .add-btn {
-    font-size: 18px;
+    font-size: var(--fs-title3);
     font-weight: 300;
   }
   .list {

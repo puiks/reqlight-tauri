@@ -46,7 +46,7 @@
     background: var(--bg-primary);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-md);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+    box-shadow: var(--shadow-elevated);
     padding: var(--sp-xs) 0;
     min-width: 160px;
     z-index: 50;

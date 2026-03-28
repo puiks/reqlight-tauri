@@ -37,6 +37,17 @@
   --fs-small: 12px;
   --fs-body: 13px;
   --fs-callout: 14px;
+  --fs-title3: 18px;
+  --fs-title2: 24px;
+  --fs-icon-lg: 40px;
+
+  /* Shadows */
+  --shadow-modal: 0 8px 32px rgba(0, 0, 0, 0.2);
+  --shadow-elevated: 0 4px 16px rgba(0, 0, 0, 0.15);
+  --shadow-toast: 0 4px 12px rgba(0, 0, 0, 0.15);
+
+  /* Overlays */
+  --overlay-backdrop: rgba(0, 0, 0, 0.4);
 }
 
 /* ===== Light Theme (default) ===== */

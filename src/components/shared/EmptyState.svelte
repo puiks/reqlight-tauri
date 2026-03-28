@@ -26,7 +26,7 @@
     height: 100%;
   }
   .icon {
-    font-size: 40px;
+    font-size: var(--fs-icon-lg);
   }
   h3 {
     font-size: var(--fs-callout);

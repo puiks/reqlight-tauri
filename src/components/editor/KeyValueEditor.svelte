@@ -166,7 +166,7 @@
     flex-shrink: 0;
   }
   .secret-btn {
-    font-size: 12px;
+    font-size: var(--fs-small);
     padding: 2px;
   }
   .action-col {
