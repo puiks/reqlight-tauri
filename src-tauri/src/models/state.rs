@@ -5,7 +5,7 @@ use super::collection::RequestCollection;
 use super::environment::RequestEnvironment;
 use super::history::RequestHistoryEntry;
 
-/// Root persisted state, matches Swift's AppState Codable.
+/// Root persisted state.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct AppState {

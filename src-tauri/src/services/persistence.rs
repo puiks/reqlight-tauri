@@ -1,6 +1,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use crate::models::auth::AuthConfig;
 use crate::models::AppState;
 use crate::services::keychain;
 
@@ -23,13 +24,23 @@ fn data_file_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     Ok(data_dir(app)?.join(DATA_FILE_NAME))
 }
 
-/// Keychain key format matching Swift: "env_{envId}_{varId}"
+/// Keychain key format: "env_{envId}_{varId}"
 fn keychain_key(env_id: &uuid::Uuid, var_id: &uuid::Uuid) -> String {
-    // Swift uses uppercased UUID strings
     format!(
         "env_{}_{}",
         env_id.to_string().to_uppercase(),
         var_id.to_string().to_uppercase()
+    )
+}
+
+/// Keychain key for OAuth2 secrets on a specific request.
+/// Format: "oauth_{collectionId}_{requestId}_{field}"
+fn oauth_keychain_key(collection_id: &uuid::Uuid, request_id: &uuid::Uuid, field: &str) -> String {
+    format!(
+        "oauth_{}_{}_{}",
+        collection_id.to_string().to_uppercase(),
+        request_id.to_string().to_uppercase(),
+        field,
     )
 }
 
@@ -50,12 +61,44 @@ fn sanitize_secrets(state: &AppState) -> (AppState, Vec<(String, String)>) {
     let mut sanitized = state.clone();
     let mut secrets = Vec::new();
 
+    // Strip secret environment variables
     for env in &mut sanitized.environments {
         for var in &mut env.variables {
             if var.is_secret && !var.value.is_empty() {
                 let key = keychain_key(&env.id, &var.id);
                 secrets.push((key, var.value.clone()));
                 var.value = String::new();
+            }
+        }
+    }
+
+    // Strip OAuth2 tokens from request auth configs
+    for collection in &mut sanitized.collections {
+        for request in &mut collection.requests {
+            if let AuthConfig::OAuth2 {
+                ref mut access_token,
+                ref mut refresh_token,
+                ref mut client_secret,
+                ..
+            } = request.auth
+            {
+                let cid = &collection.id;
+                let rid = &request.id;
+                if !access_token.is_empty() {
+                    let key = oauth_keychain_key(cid, rid, "access_token");
+                    secrets.push((key, access_token.clone()));
+                    *access_token = String::new();
+                }
+                if !refresh_token.is_empty() {
+                    let key = oauth_keychain_key(cid, rid, "refresh_token");
+                    secrets.push((key, refresh_token.clone()));
+                    *refresh_token = String::new();
+                }
+                if !client_secret.is_empty() {
+                    let key = oauth_keychain_key(cid, rid, "client_secret");
+                    secrets.push((key, client_secret.clone()));
+                    *client_secret = String::new();
+                }
             }
         }
     }
@@ -75,13 +118,40 @@ pub fn load_state(app: &tauri::AppHandle) -> Result<AppState, String> {
     let path = data_file_path(app)?;
     let mut state = load_state_from_path(&path)?;
 
-    // Restore secret values from keychain
+    // Restore secret environment variables from keychain
     for env in &mut state.environments {
         for var in &mut env.variables {
             if var.is_secret {
                 let key = keychain_key(&env.id, &var.id);
                 if let Ok(Some(secret)) = keychain::load(&key) {
                     var.value = secret;
+                }
+            }
+        }
+    }
+
+    // Restore OAuth2 tokens from keychain
+    for collection in &mut state.collections {
+        for request in &mut collection.requests {
+            if let AuthConfig::OAuth2 {
+                ref mut access_token,
+                ref mut refresh_token,
+                ref mut client_secret,
+                ..
+            } = request.auth
+            {
+                let cid = &collection.id;
+                let rid = &request.id;
+                if let Ok(Some(v)) = keychain::load(&oauth_keychain_key(cid, rid, "access_token")) {
+                    *access_token = v;
+                }
+                if let Ok(Some(v)) = keychain::load(&oauth_keychain_key(cid, rid, "refresh_token"))
+                {
+                    *refresh_token = v;
+                }
+                if let Ok(Some(v)) = keychain::load(&oauth_keychain_key(cid, rid, "client_secret"))
+                {
+                    *client_secret = v;
                 }
             }
         }
@@ -258,6 +328,116 @@ mod tests {
 
         // Empty secret should not be stored in keychain
         assert!(secrets.is_empty());
+    }
+
+    #[test]
+    fn sanitize_secrets_strips_oauth2_tokens() {
+        use crate::models::auth::AuthConfig;
+        use crate::models::collection::RequestCollection;
+        use crate::models::request::SavedRequest;
+
+        let col_id = uuid::Uuid::new_v4();
+        let req_id = uuid::Uuid::new_v4();
+
+        let mut state = AppState::default();
+        let mut request = SavedRequest::default();
+        request.id = req_id;
+        request.auth = AuthConfig::OAuth2 {
+            grant_type: "client_credentials".to_string(),
+            client_id: "my-app".to_string(),
+            client_secret: "super-secret".to_string(),
+            auth_url: "https://auth.example.com".to_string(),
+            token_url: "https://token.example.com".to_string(),
+            scopes: "read".to_string(),
+            access_token: "tok_abc123".to_string(),
+            refresh_token: "ref_xyz789".to_string(),
+            token_expiry: None,
+        };
+
+        state.collections.push(RequestCollection {
+            id: col_id,
+            name: "Test".to_string(),
+            requests: vec![request],
+            sort_order: 0,
+            created_at: "2026-01-01T00:00:00Z".to_string(),
+        });
+
+        let (sanitized, secrets) = sanitize_secrets(&state);
+
+        // OAuth2 tokens should be stripped
+        if let AuthConfig::OAuth2 {
+            access_token,
+            refresh_token,
+            client_secret,
+            client_id,
+            ..
+        } = &sanitized.collections[0].requests[0].auth
+        {
+            assert_eq!(access_token, "");
+            assert_eq!(refresh_token, "");
+            assert_eq!(client_secret, "");
+            // client_id is NOT secret, should be preserved
+            assert_eq!(client_id, "my-app");
+        } else {
+            panic!("Expected OAuth2 auth config");
+        }
+
+        // 3 secrets: access_token, refresh_token, client_secret
+        assert_eq!(secrets.len(), 3);
+        let secret_values: Vec<&str> = secrets.iter().map(|(_, v)| v.as_str()).collect();
+        assert!(secret_values.contains(&"tok_abc123"));
+        assert!(secret_values.contains(&"ref_xyz789"));
+        assert!(secret_values.contains(&"super-secret"));
+    }
+
+    #[test]
+    fn oauth2_secrets_not_written_to_json_file() {
+        use crate::models::auth::AuthConfig;
+        use crate::models::collection::RequestCollection;
+        use crate::models::request::SavedRequest;
+
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("data.json");
+
+        let mut state = AppState::default();
+        let mut request = SavedRequest::default();
+        request.auth = AuthConfig::OAuth2 {
+            grant_type: "client_credentials".to_string(),
+            client_id: "my-app".to_string(),
+            client_secret: "the-client-secret".to_string(),
+            auth_url: "".to_string(),
+            token_url: "".to_string(),
+            scopes: "".to_string(),
+            access_token: "secret-access-token".to_string(),
+            refresh_token: "secret-refresh-token".to_string(),
+            token_expiry: None,
+        };
+        state.collections.push(RequestCollection {
+            id: uuid::Uuid::new_v4(),
+            name: "Test".to_string(),
+            requests: vec![request],
+            sort_order: 0,
+            created_at: "2026-01-01T00:00:00Z".to_string(),
+        });
+
+        let (sanitized, _) = sanitize_secrets(&state);
+        save_state_to_path(&path, &sanitized).unwrap();
+
+        let raw_json = fs::read_to_string(&path).unwrap();
+        assert!(
+            !raw_json.contains("secret-access-token"),
+            "access_token should NOT appear in JSON"
+        );
+        assert!(
+            !raw_json.contains("secret-refresh-token"),
+            "refresh_token should NOT appear in JSON"
+        );
+        assert!(
+            !raw_json.contains("the-client-secret"),
+            "client_secret should NOT appear in JSON"
+        );
+        // Non-secret fields should still be present
+        assert!(raw_json.contains("my-app"));
     }
 
     #[test]
