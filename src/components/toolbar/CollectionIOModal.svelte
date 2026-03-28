@@ -1,5 +1,6 @@
 <script lang="ts">
   import Modal from "../shared/Modal.svelte";
+  import ImportSection from "./ImportSection.svelte";
   import { appStore } from "../../lib/stores/app.svelte";
   import { environmentStore } from "../../lib/stores/environment.svelte";
   import { toastStore } from "../../lib/stores/toast.svelte";
@@ -142,34 +143,14 @@
     </div>
 
     {#if activeTab === "import"}
-      <div class="import-section">
-        <div class="file-upload">
-          <label class="file-label">
-            Choose file or paste content below
-            <input type="file" accept={importType === "openapi" ? ".json,.yaml,.yml" : importType === "har" ? ".har,.json" : ".json"} onchange={handleFileUpload} class="file-input" />
-          </label>
-        </div>
-        <textarea
-          class="json-textarea"
-          placeholder={importType === "openapi"
-            ? "Paste OpenAPI 3.x or Swagger 2.x spec (JSON or YAML)..."
-            : importType === "har"
-              ? "Paste HAR JSON here (exported from Chrome DevTools)..."
-              : `Paste Postman ${importType === "collection" ? "Collection" : "Environment"} JSON here...`}
-          bind:value={jsonInput}
-          spellcheck="false"
-        ></textarea>
-        {#if errorMessage}
-          <div class="error">{errorMessage}</div>
-        {/if}
-        <button
-          class="action-btn"
-          onclick={handleImport}
-          disabled={isProcessing || !jsonInput.trim()}
-        >
-          {isProcessing ? "Importing..." : "Import"}
-        </button>
-      </div>
+      <ImportSection
+        {importType}
+        bind:jsonInput
+        {isProcessing}
+        {errorMessage}
+        onimport={handleImport}
+        onfileupload={handleFileUpload}
+      />
     {:else}
       <div class="export-section">
         {#if importType === "collection"}
@@ -244,23 +225,10 @@
     color: var(--color-info);
     font-weight: 600;
   }
-  .import-section,
   .export-section {
     display: flex;
     flex-direction: column;
     gap: var(--sp-sm);
-  }
-  .file-upload {
-    font-size: var(--fs-caption);
-    color: var(--text-secondary);
-  }
-  .file-label {
-    cursor: pointer;
-  }
-  .file-input {
-    display: block;
-    margin-top: var(--sp-xs);
-    font-size: var(--fs-caption);
   }
   .json-textarea {
     width: 100%;

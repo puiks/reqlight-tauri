@@ -5,6 +5,7 @@
   import SearchBar from "./SearchBar.svelte";
   import EmptyState from "../shared/EmptyState.svelte";
   import ConfirmDialog from "../shared/ConfirmDialog.svelte";
+  import ContextMenu from "./ContextMenu.svelte";
 
   import type { RequestCollection } from "../../lib/types";
 
@@ -49,9 +50,10 @@
     contextMenu = null;
   }
 
-  function handleRename(id: string, currentName: string) {
+  function handleRename(id: string, currentName?: string) {
+    const name = currentName ?? appStore.collections.find((c) => c.id === id)?.name ?? "";
     renamingId = id;
-    renameValue = currentName;
+    renameValue = name;
     contextMenu = null;
   }
 
@@ -65,6 +67,11 @@
   function handleDelete(type: "collection" | "request", id: string, name: string) {
     confirmDelete = { type, id, name };
     contextMenu = null;
+  }
+
+  function handleContextMenuDelete(id: string) {
+    const c = appStore.collections.find((col) => col.id === id);
+    if (c) handleDelete("collection", c.id, c.name);
   }
 
   function confirmDeleteAction() {
@@ -181,44 +188,18 @@
   <HistorySection />
 </div>
 
-<!-- Context Menu -->
 {#if contextMenu}
-  <div
-    class="context-menu"
-    style="left: {contextMenu.x}px; top: {contextMenu.y}px"
-    role="menu"
-  >
-    {#if contextMenu.type === "collection"}
-      <!-- svelte-ignore a11y_click_events_have_key_events -->
-      <div class="menu-item" role="menuitem" tabindex="-1" onclick={() => handleAddRequest(contextMenu!.id)}>
-        New Request
-      </div>
-      <!-- svelte-ignore a11y_click_events_have_key_events -->
-      <div
-        class="menu-item" role="menuitem" tabindex="-1"
-        onclick={() => {
-          const c = appStore.collections.find((c) => c.id === contextMenu!.id);
-          if (c) handleRename(c.id, c.name);
-        }}
-      >
-        Rename
-      </div>
-      <div class="menu-divider"></div>
-      <!-- svelte-ignore a11y_click_events_have_key_events -->
-      <div
-        class="menu-item danger" role="menuitem" tabindex="-1"
-        onclick={() => {
-          const c = appStore.collections.find((c) => c.id === contextMenu!.id);
-          if (c) handleDelete("collection", c.id, c.name);
-        }}
-      >
-        Delete
-      </div>
-    {/if}
-  </div>
+  <ContextMenu
+    x={contextMenu.x}
+    y={contextMenu.y}
+    type={contextMenu.type}
+    id={contextMenu.id}
+    onaddrequest={handleAddRequest}
+    onrename={handleRename}
+    ondelete={handleContextMenuDelete}
+  />
 {/if}
 
-<!-- Confirm Dialog -->
 {#if confirmDelete}
   <ConfirmDialog
     title={`Delete ${confirmDelete.type === 'collection' ? 'Collection' : 'Request'}`}
@@ -280,8 +261,6 @@
     width: 100%;
     font-size: var(--fs-small);
   }
-
-  /* Collection drag */
   .collection-drag-wrapper {
     border-top: 2px solid transparent;
     transition: border-color 0.1s;
@@ -291,33 +270,5 @@
   }
   .collection-drag-wrapper.collection-dragging {
     opacity: 0.5;
-  }
-
-  /* Context menu */
-  .context-menu {
-    position: fixed;
-    background: var(--bg-primary);
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-md);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
-    padding: var(--sp-xs) 0;
-    min-width: 160px;
-    z-index: 50;
-  }
-  .menu-item {
-    padding: var(--sp-xs) var(--sp-md);
-    font-size: var(--fs-small);
-    cursor: pointer;
-  }
-  .menu-item:hover {
-    background: var(--bg-hover);
-  }
-  .menu-item.danger {
-    color: var(--color-error);
-  }
-  .menu-divider {
-    height: 1px;
-    background: var(--border-color);
-    margin: var(--sp-xs) 0;
   }
 </style>

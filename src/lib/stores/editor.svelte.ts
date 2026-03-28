@@ -2,12 +2,9 @@ import { sendRequest, cancelRequest } from "../commands";
 import {
   buildAuthConfig,
   buildRequestBody,
-  createEmptyAuth,
   createEmptyExtractionRule,
   createEmptyMultipartField,
-  createEmptyOAuth2Config,
   createEmptyPair,
-  getAuthType,
   getBodyContent,
   getBodyType,
   getFormPairs,
@@ -21,13 +18,13 @@ import {
   type HttpMethod,
   type KeyValuePair,
   type MultipartField,
-  type OAuth2Config,
   type OAuthGrantType,
   type ResponseRecord,
   type ResponseTab,
   type SavedRequest,
 } from "../types";
 import { extractByPath } from "../utils/jsonpath";
+import { parseAuthConfig, buildOAuth2ConfigFromFields } from "../utils/auth-helpers";
 import { DEFAULT_REQUEST_TIMEOUT } from "../constants";
 import { appStore } from "./app.svelte";
 import { environmentStore } from "./environment.svelte";
@@ -80,11 +77,10 @@ class EditorStore {
   followRedirects = $state(true);
   protocolMode = $state<"http" | "ws">("http");
 
-  // Derived
   get isUrlValid(): boolean {
     const u = this.url.trim();
-    if (!u) return true; // empty is ok (just can't send)
-    if (u.includes("{{")) return true; // allow variables
+    if (!u) return true;
+    if (u.includes("{{")) return true;
     try {
       new URL(u);
       return true;
@@ -97,7 +93,6 @@ class EditorStore {
     return this.url.trim().length > 0 && !this.isLoading;
   }
 
-  // Load from a saved request
   loadFrom(request: SavedRequest) {
     this.saveIfDirty();
     this.requestId = request.id;
@@ -126,45 +121,48 @@ class EditorStore {
     this.extractionRules = request.responseExtractions?.length
       ? [...request.responseExtractions]
       : [createEmptyExtractionRule()];
-    this.loadAuth(request.auth);
+    this.applyAuthFields(parseAuthConfig(request.auth));
     this.response = null;
     this.errorMessage = null;
     this.isDirty = false;
   }
 
-  private loadAuth(auth?: import("../types").AuthConfig) {
-    this.authType = getAuthType(auth);
-    this.bearerToken = "";
-    this.basicUsername = "";
-    this.basicPassword = "";
-    this.apiKeyKey = "";
-    this.apiKeyValue = "";
-    this.apiKeyLocation = "header";
-    this.resetOAuth2Fields();
-    if (auth && "bearerToken" in auth) {
-      this.bearerToken = auth.bearerToken._0.token;
-    } else if (auth && "basicAuth" in auth) {
-      this.basicUsername = auth.basicAuth._0.username;
-      this.basicPassword = auth.basicAuth._0.password;
-    } else if (auth && "apiKey" in auth) {
-      this.apiKeyKey = auth.apiKey._0.key;
-      this.apiKeyValue = auth.apiKey._0.value;
-      this.apiKeyLocation = auth.apiKey._0.location;
-    } else if (auth && "oauth2" in auth) {
-      const o = auth.oauth2;
-      this.oauthGrantType = o.grantType;
-      this.oauthClientId = o.clientId;
-      this.oauthClientSecret = o.clientSecret;
-      this.oauthAuthUrl = o.authUrl;
-      this.oauthTokenUrl = o.tokenUrl;
-      this.oauthScopes = o.scopes;
-      this.oauthAccessToken = o.accessToken;
-      this.oauthRefreshToken = o.refreshToken;
-      this.oauthTokenExpiry = o.tokenExpiry;
-    }
+  private applyAuthFields(fields: import("../utils/auth-helpers").AuthFields) {
+    this.authType = fields.authType;
+    this.bearerToken = fields.bearerToken;
+    this.basicUsername = fields.basicUsername;
+    this.basicPassword = fields.basicPassword;
+    this.apiKeyKey = fields.apiKeyKey;
+    this.apiKeyValue = fields.apiKeyValue;
+    this.apiKeyLocation = fields.apiKeyLocation;
+    this.oauthGrantType = fields.oauthGrantType;
+    this.oauthClientId = fields.oauthClientId;
+    this.oauthClientSecret = fields.oauthClientSecret;
+    this.oauthAuthUrl = fields.oauthAuthUrl;
+    this.oauthTokenUrl = fields.oauthTokenUrl;
+    this.oauthScopes = fields.oauthScopes;
+    this.oauthAccessToken = fields.oauthAccessToken;
+    this.oauthRefreshToken = fields.oauthRefreshToken;
+    this.oauthTokenExpiry = fields.oauthTokenExpiry;
   }
 
-  // Build a SavedRequest from current editor state
+  private currentBody(filterEmpty = false) {
+    const gql = { query: this.graphqlQuery, variables: this.graphqlVariables };
+    const formPairs = filterEmpty ? this.formPairs.filter((p) => p.key || p.value) : this.formPairs;
+    const multipart = filterEmpty ? this.multipartFields.filter((f) => f.name) : this.multipartFields;
+    return buildRequestBody(this.bodyType, this.jsonBody, this.rawBody, formPairs, multipart, gql);
+  }
+
+  private currentAuth() {
+    return buildAuthConfig(
+      this.authType,
+      { token: this.bearerToken },
+      { username: this.basicUsername, password: this.basicPassword },
+      { key: this.apiKeyKey, value: this.apiKeyValue, location: this.apiKeyLocation },
+      buildOAuth2ConfigFromFields(this),
+    );
+  }
+
   toSavedRequest(): SavedRequest | null {
     if (!this.requestId) return null;
     return {
@@ -172,33 +170,17 @@ class EditorStore {
       name: this.name,
       method: this.method,
       url: this.url,
-      queryParams: this.queryParams.filter((p) => !p.key && !p.value ? false : true),
-      headers: this.headers.filter((p) => !p.key && !p.value ? false : true),
-      body: buildRequestBody(
-        this.bodyType,
-        this.jsonBody,
-        this.rawBody,
-        this.formPairs.filter((p) => !p.key && !p.value ? false : true),
-        this.multipartFields.filter((f) => !f.name ? false : true),
-        { query: this.graphqlQuery, variables: this.graphqlVariables },
-      ),
-      auth: buildAuthConfig(
-        this.authType,
-        { token: this.bearerToken },
-        { username: this.basicUsername, password: this.basicPassword },
-        { key: this.apiKeyKey, value: this.apiKeyValue, location: this.apiKeyLocation },
-        this.buildOAuth2Config(),
-      ),
+      queryParams: this.queryParams.filter((p) => p.key || p.value),
+      headers: this.headers.filter((p) => p.key || p.value),
+      body: this.currentBody(true),
+      auth: this.currentAuth(),
       sortOrder: 0,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      responseExtractions: this.extractionRules.filter(
-        (r) => r.variableName || r.jsonPath,
-      ),
+      responseExtractions: this.extractionRules.filter((r) => r.variableName || r.jsonPath),
     };
   }
 
-  // Save current editor state to the store
   saveIfDirty() {
     if (!this.isDirty || !this.requestId) return;
     const request = this.toSavedRequest();
@@ -208,42 +190,21 @@ class EditorStore {
     }
   }
 
-  markDirty() {
-    this.isDirty = true;
-  }
+  markDirty() { this.isDirty = true; }
 
-  // Send the current request
   async send() {
     if (!this.canSend) return;
-
-    // Synchronously set loading to prevent double-send from rapid clicks
     this.isLoading = true;
     this.errorMessage = null;
     this.response = null;
-
     try {
-      const body = buildRequestBody(
-        this.bodyType,
-        this.jsonBody,
-        this.rawBody,
-        this.formPairs,
-        this.multipartFields,
-        { query: this.graphqlQuery, variables: this.graphqlVariables },
-      );
-      const auth = buildAuthConfig(
-        this.authType,
-        { token: this.bearerToken },
-        { username: this.basicUsername, password: this.basicPassword },
-        { key: this.apiKeyKey, value: this.apiKeyValue, location: this.apiKeyLocation },
-        this.buildOAuth2Config(),
-      );
       const result = await sendRequest({
         method: this.method,
         url: this.url,
         headers: this.headers,
         queryParams: this.queryParams,
-        body,
-        auth,
+        body: this.currentBody(),
+        auth: this.currentAuth(),
         timeoutSecs: this.timeoutSecs,
         followRedirects: this.followRedirects,
         environment: environmentStore.activeEnvironment,
@@ -252,7 +213,6 @@ class EditorStore {
       this.response = result;
       this.applyExtractions(result);
 
-      // Add to history with full request snapshot for replay
       historyStore.addEntry({
         method: this.method,
         url: this.url,
@@ -270,7 +230,6 @@ class EditorStore {
     }
   }
 
-  // Cancel the in-flight request via Rust-side Notify
   async cancel() {
     if (!this.isLoading) return;
     try {
@@ -281,7 +240,6 @@ class EditorStore {
     this.isLoading = false;
   }
 
-  // Apply extraction rules to response and write to environment
   private applyExtractions(response: ResponseRecord) {
     if (!response.bodyString || !response.isJson) return;
     const enabledRules = this.extractionRules.filter(
@@ -304,7 +262,6 @@ class EditorStore {
     }
   }
 
-  // Reset to empty
   reset() {
     this.requestId = null;
     this.name = "New Request";
@@ -320,30 +277,11 @@ class EditorStore {
     this.graphqlQuery = "";
     this.graphqlVariables = "";
     this.extractionRules = [createEmptyExtractionRule()];
-    this.authType = "none";
-    this.bearerToken = "";
-    this.basicUsername = "";
-    this.basicPassword = "";
-    this.apiKeyKey = "";
-    this.apiKeyValue = "";
-    this.apiKeyLocation = "header";
-    this.resetOAuth2Fields();
+    this.applyAuthFields(parseAuthConfig(undefined));
     this.response = null;
     this.pinnedResponse = null;
     this.errorMessage = null;
     this.isDirty = false;
-  }
-
-  private resetOAuth2Fields() {
-    this.oauthGrantType = "client_credentials";
-    this.oauthClientId = "";
-    this.oauthClientSecret = "";
-    this.oauthAuthUrl = "";
-    this.oauthTokenUrl = "";
-    this.oauthScopes = "";
-    this.oauthAccessToken = "";
-    this.oauthRefreshToken = "";
-    this.oauthTokenExpiry = null;
   }
 
   pinResponse() {
@@ -356,19 +294,6 @@ class EditorStore {
     this.pinnedResponse = null;
   }
 
-  buildOAuth2Config(): OAuth2Config {
-    return {
-      grantType: this.oauthGrantType,
-      clientId: this.oauthClientId,
-      clientSecret: this.oauthClientSecret,
-      authUrl: this.oauthAuthUrl,
-      tokenUrl: this.oauthTokenUrl,
-      scopes: this.oauthScopes,
-      accessToken: this.oauthAccessToken,
-      refreshToken: this.oauthRefreshToken,
-      tokenExpiry: this.oauthTokenExpiry,
-    };
-  }
 }
 
 export const editorStore = new EditorStore();

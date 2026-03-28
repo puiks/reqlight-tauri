@@ -3,6 +3,7 @@
   import { formatJson, highlightJson } from "../../lib/utils/json-highlighter";
   import { formatXml, highlightXml } from "../../lib/utils/xml-highlighter";
   import { findMatches, highlightMatches } from "../../lib/utils/text-search";
+  import ResponseSearch from "./ResponseSearch.svelte";
 
   let { response }: { response: ResponseRecord } = $props();
 
@@ -57,13 +58,9 @@
       : null,
   );
 
-  // Build a data URL for image responses
   const imageDataUrl = $derived((): string | null => {
     if (contentCategory() !== "image" || !response.bodyString) return null;
     const ct = response.contentType || "image/png";
-    // bodyString is raw text; for binary we'd need base64, but current impl
-    // passes text. If the backend sent base64 we'd use it here.
-    // For now, this works with SVG. For binary images, we'll need backend changes.
     if (ct.includes("svg")) {
       return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(response.bodyString)}`;
     }
@@ -87,33 +84,6 @@
     } else {
       requestAnimationFrame(() => searchInputEl?.focus());
     }
-  }
-
-  function handleSearchKeydown(e: KeyboardEvent) {
-    if (e.key === "Escape") {
-      toggleSearch();
-    } else if (e.key === "Enter") {
-      if (e.shiftKey) { prevMatch(); } else { nextMatch(); }
-    }
-  }
-
-  function nextMatch() {
-    if (searchResults.length === 0) return;
-    activeMatchIndex = (activeMatchIndex + 1) % searchResults.length;
-    scrollToActiveMatch();
-  }
-
-  function prevMatch() {
-    if (searchResults.length === 0) return;
-    activeMatchIndex = (activeMatchIndex - 1 + searchResults.length) % searchResults.length;
-    scrollToActiveMatch();
-  }
-
-  function scrollToActiveMatch() {
-    requestAnimationFrame(() => {
-      const el = document.querySelector(".search-match.active");
-      el?.scrollIntoView({ block: "center", behavior: "smooth" });
-    });
   }
 
   function handleKeydown(e: KeyboardEvent) {
@@ -156,26 +126,13 @@
   </div>
 
   {#if searchVisible}
-    <div class="search-bar">
-      <input
-        type="text"
-        class="search-input"
-        placeholder="Search in response..."
-        bind:value={searchQuery}
-        bind:this={searchInputEl}
-        onkeydown={handleSearchKeydown}
-        spellcheck="false"
-      />
-      {#if searchQuery}
-        <span class="search-count">
-          {searchResults.length > 0
-            ? `${activeMatchIndex + 1}/${searchResults.length}`
-            : "0 results"}
-        </span>
-        <button class="nav-btn" onclick={prevMatch} title="Previous (Shift+Enter)">▲</button>
-        <button class="nav-btn" onclick={nextMatch} title="Next (Enter)">▼</button>
-      {/if}
-    </div>
+    <ResponseSearch
+      bind:searchQuery
+      {searchResults}
+      bind:activeMatchIndex
+      bind:searchInputEl
+      onclose={toggleSearch}
+    />
   {/if}
 
   {#if response.isTruncated}
@@ -250,32 +207,6 @@
     font-size: var(--fs-caption);
     color: var(--text-secondary);
     margin-left: auto;
-  }
-  .search-bar {
-    display: flex;
-    align-items: center;
-    gap: var(--sp-xs);
-    padding: var(--sp-xs) var(--sp-md);
-    border-bottom: 1px solid var(--border-light);
-    background: var(--bg-secondary);
-  }
-  .search-input {
-    flex: 1;
-    font-size: var(--fs-small);
-    padding: 2px var(--sp-sm);
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-sm);
-    background: var(--bg-input);
-  }
-  .search-count {
-    font-size: var(--fs-caption);
-    color: var(--text-secondary);
-    white-space: nowrap;
-  }
-  .nav-btn {
-    font-size: var(--fs-caption);
-    padding: 0 2px;
-    color: var(--text-secondary);
   }
   .body-content {
     flex: 1;
