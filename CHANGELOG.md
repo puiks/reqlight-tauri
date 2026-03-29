@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-03-29
+
+### Changed
+
+- Split `persistence.rs` tests into `persistence_tests.rs` (file was over 300-line limit)
+- Split `types.ts` helper functions into `type-helpers.ts` (file was over 300-line limit)
+- Disable syntax highlighting for response bodies exceeding 512 KB to prevent UI freeze
+- Release workflow now auto-extracts release notes from CHANGELOG.md
+- Require Node.js >=22 (`engines` + `.node-version`) to fix `vp check`/`vp fmt`/`vp lint` config loading
+- Pre-commit hook uses `npx` instead of bare `vp` to resolve PATH issues
+
+### Fixed
+
+- `vp check`/`vp fmt`/`vp lint` failing locally due to Node.js 20 unable to load `.ts` config files
+
 ## [0.5.1] - 2026-03-29
 
 ### Added

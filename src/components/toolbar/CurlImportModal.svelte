@@ -72,7 +72,7 @@
     color: var(--color-error);
     font-size: var(--fs-small);
     padding: var(--sp-xs) var(--sp-sm);
-    background: rgba(239, 68, 68, 0.1);
+    background: var(--color-error-overlay);
     border-radius: var(--radius-sm);
   }
   .actions {

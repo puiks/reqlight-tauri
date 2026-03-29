@@ -107,11 +107,7 @@ describe('extractByPath - wildcard [*]', () => {
 
   it('collects a field from all array elements', () => {
     const data = {
-      users: [
-        { name: 'Alice' },
-        { name: 'Bob' },
-        { name: 'Charlie' },
-      ],
+      users: [{ name: 'Alice' }, { name: 'Bob' }, { name: 'Charlie' }],
     }
     const result = extractByPath(data, '$.users[*].name')
     expect(result).toBe('["Alice","Bob","Charlie"]')

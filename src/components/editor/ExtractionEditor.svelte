@@ -1,6 +1,6 @@
 <script lang="ts">
   import { editorStore } from "../../lib/stores/editor.svelte";
-  import { createEmptyExtractionRule } from "../../lib/types";
+  import { createEmptyExtractionRule } from "../../lib/type-helpers";
 
   function handleInput(index: number) {
     editorStore.markDirty();

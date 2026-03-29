@@ -14,8 +14,31 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  prepare:
+    name: Extract release notes
+    runs-on: ubuntu-latest
+    outputs:
+      release_body: ${{ steps.notes.outputs.body }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract changelog for current version
+        id: notes
+        run: |
+          # Strip leading 'v' from tag to get version number
+          VERSION="${GITHUB_REF_NAME#v}"
+          # Extract the section between ## [VERSION] and the next ## [
+          BODY=$(awk "/^## \\[${VERSION}\\]/{found=1; next} /^## \\[/{if(found) exit} found{print}" CHANGELOG.md)
+          # Use EOF delimiter for multiline output
+          {
+            echo "body<<RELEASE_NOTES_EOF"
+            echo "$BODY"
+            echo "RELEASE_NOTES_EOF"
+          } >> "$GITHUB_OUTPUT"
+
   build:
     name: Build (${{ matrix.name }})
+    needs: prepare
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
@@ -60,6 +83,7 @@ jobs:
         with:
           tagName: v__VERSION__
           releaseName: Reqlight v__VERSION__
+          releaseBody: ${{ needs.prepare.outputs.release_body }}
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}

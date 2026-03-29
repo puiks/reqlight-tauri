@@ -37,10 +37,7 @@ export function extractByPath(obj: unknown, path: string): string | undefined {
 }
 
 /** Resolve a list of tokens against a value, returning raw result (may be array for wildcards). */
-function resolveTokens(
-  current: unknown,
-  tokens: string[],
-): unknown | undefined {
+function resolveTokens(current: unknown, tokens: string[]): unknown | undefined {
   let value: unknown = current
 
   for (let i = 0; i < tokens.length; i++) {
@@ -102,10 +99,7 @@ function resolveTokens(
 }
 
 /** Handle recursive descent: find all values matching a key recursively. */
-function resolveRecursive(
-  obj: unknown,
-  rest: string,
-): string | undefined {
+function resolveRecursive(obj: unknown, rest: string): string | undefined {
   // rest is like "price" or "book[0].title"
   const tokens = tokenize(rest)
   if (tokens.length === 0) return undefined

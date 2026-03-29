@@ -1,6 +1,6 @@
 <script lang="ts">
   import { wsStore } from "../../lib/stores/websocket.svelte";
-  import { createEmptyPair } from "../../lib/types";
+  import { createEmptyPair } from "../../lib/type-helpers";
   import WsMessageList from "./WsMessageList.svelte";
 
   function handleKeydown(e: KeyboardEvent) {

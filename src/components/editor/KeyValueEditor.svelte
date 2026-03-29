@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { createEmptyPair, type KeyValuePair } from "../../lib/types";
+  import { createEmptyPair } from "../../lib/type-helpers";
+  import type { KeyValuePair } from "../../lib/types";
 
   let {
     pairs = $bindable(),

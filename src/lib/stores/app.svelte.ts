@@ -1,13 +1,7 @@
 import { loadState, saveState } from '../commands'
 import { SAVE_DEBOUNCE_MS } from '../constants'
-import {
-  type AppState,
-  createEmptyBody,
-  createEmptyPair,
-  type ProxyConfig,
-  type RequestCollection,
-  type SavedRequest,
-} from '../types'
+import { createEmptyBody, createEmptyPair } from '../type-helpers'
+import type { AppState, ProxyConfig, RequestCollection, SavedRequest } from '../types'
 import { handleError } from '../utils/errors'
 import { environmentStore } from './environment.svelte'
 import { historyStore } from './history.svelte'
@@ -45,7 +39,7 @@ class AppStore {
     return this.collections.find((c) => c.id === this.selectedCollectionId)
   }
 
-  get filteredCollections(): RequestCollection[] {
+  readonly filteredCollections = $derived.by<RequestCollection[]>(() => {
     if (!this.searchQuery.trim()) return this.collections
     const q = this.searchQuery.toLowerCase()
     return this.collections
@@ -61,7 +55,7 @@ class AppStore {
         }
       })
       .filter((c) => c.name.toLowerCase().includes(q) || c.requests.length > 0)
-  }
+  })
 
   // Load
   async load() {

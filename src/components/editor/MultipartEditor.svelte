@@ -1,6 +1,6 @@
 <script lang="ts">
   import { editorStore } from "../../lib/stores/editor.svelte";
-  import { createEmptyMultipartField } from "../../lib/types";
+  import { createEmptyMultipartField } from "../../lib/type-helpers";
 
   let { onchange }: { onchange?: () => void } = $props();
 

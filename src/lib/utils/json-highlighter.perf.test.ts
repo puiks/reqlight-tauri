@@ -49,9 +49,8 @@ describe('JSON Highlighter Performance', () => {
     expect(elapsed).toBeLessThan(1000)
   })
 
-  // KNOWN PERF ISSUE: highlightJson uses regex-based line-by-line processing
-  // that scales poorly beyond ~200KB. 1MB takes ~2.5s locally, ~5s+ on CI.
-  // TODO: Disable syntax highlighting for bodies >500KB, or move to Web Worker.
+  // NOTE: highlightJson scales poorly beyond ~200KB. 1MB takes ~2.5s locally, ~5s+ on CI.
+  // ResponseBody.svelte now skips highlighting for bodies >512KB (HIGHLIGHT_SIZE_LIMIT).
   it('highlightJson 1MB is slow (known issue — baseline)', { timeout: 30000 }, () => {
     const json = generateLargeJson(1_000_000)
     const formatted = formatJson(json)

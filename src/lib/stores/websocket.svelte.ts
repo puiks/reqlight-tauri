@@ -1,11 +1,6 @@
 import { wsConnect, wsDisconnect, wsSend } from '../commands'
-import {
-  type ConnectionStatus,
-  createEmptyPair,
-  type KeyValuePair,
-  type WsEvent,
-  type WsMessage,
-} from '../types'
+import { createEmptyPair } from '../type-helpers'
+import type { ConnectionStatus, KeyValuePair, WsEvent, WsMessage } from '../types'
 import { handleError } from '../utils/errors'
 import { environmentStore } from './environment.svelte'
 

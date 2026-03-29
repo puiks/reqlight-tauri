@@ -1,4 +1,5 @@
-import { createEmptyPair, type RequestEnvironment } from '../types'
+import { createEmptyPair } from '../type-helpers'
+import type { RequestEnvironment } from '../types'
 import { ObservableStore } from './observable.svelte'
 
 const SECRET_PLACEHOLDER = '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022'

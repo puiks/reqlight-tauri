@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { HIGHLIGHT_SIZE_LIMIT } from "../../lib/constants";
   import type { ResponseRecord } from "../../lib/types";
   import { formatJson, highlightJson } from "../../lib/utils/json-highlighter";
   import { formatXml, highlightXml } from "../../lib/utils/xml-highlighter";
@@ -35,8 +36,10 @@
     return bodyText;
   });
 
+  const isBodyTooLarge = $derived(bodyText.length > HIGHLIGHT_SIZE_LIMIT);
+
   const syntaxHtml = $derived((): string | null => {
-    if (!showFormatted || searchQuery) return null;
+    if (!showFormatted || searchQuery || isBodyTooLarge) return null;
     const cat = contentCategory();
     if (cat === "json") return highlightJson(displayText());
     if (cat === "xml") return highlightXml(displayText());
@@ -141,6 +144,12 @@
     </div>
   {/if}
 
+  {#if isBodyTooLarge && !response.isTruncated}
+    <div class="truncation-warning">
+      Syntax highlighting disabled — body exceeds 512 KB.
+    </div>
+  {/if}
+
   <div class="body-content">
     {#if contentCategory() === "image"}
       {#if imageDataUrl()}
@@ -224,7 +233,7 @@
   }
   .truncation-warning {
     padding: var(--sp-xs) var(--sp-md);
-    background: rgba(245, 158, 11, 0.1);
+    background: var(--color-warning-overlay);
     color: var(--color-warning);
     font-size: var(--fs-caption);
     font-weight: 600;
@@ -234,7 +243,7 @@
     width: 100%;
     height: 100%;
     border: none;
-    background: white;
+    background: var(--bg-primary);
     border-radius: var(--radius-sm);
   }
   .image-preview {
@@ -261,11 +270,11 @@
     color: var(--text-secondary);
   }
   :global(.search-match) {
-    background: rgba(245, 158, 11, 0.3);
+    background: var(--color-warning-highlight);
     border-radius: 1px;
   }
   :global(.search-match.active) {
-    background: rgba(245, 158, 11, 0.7);
+    background: var(--color-warning-highlight-active);
     outline: 1px solid var(--color-warning);
   }
 </style>
