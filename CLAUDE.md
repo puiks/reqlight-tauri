@@ -133,6 +133,12 @@ src-tauri/src/                # Rust Backend
 - **Use gitmoji prefix** for commit type: `✨` (feat), `🐛` (fix), `♻️` (refactor), `🧪` (test), `📝` (docs), `🔖` (release), `🎨` (style/format), `🔧` (config).
 - **Commit at natural boundaries** — after completing a self-contained piece of work, not after accumulating a large batch. If a feature spans Rust + frontend, it is fine to commit them together as one atomic unit, but do not mix in unrelated changes.
 
+### Git Workflow
+
+- **Merging to `main` must go through a Pull Request.** Never `git merge` + `git push` to main directly. Use `gh pr create` to open a PR, let CI run, then merge.
+- **Release tags should be created after the PR is merged to `main`**, not on feature branches.
+- **`--no-verify` is forbidden** unless the user explicitly grants permission. When a pre-commit hook fails, diagnose the root cause first. If it's an environment issue that cannot be fixed, report it to the user and ask before skipping.
+
 ### Pre-Commit Checklist
 
 > **All checks must pass before every commit — no skipping steps. CI enforces these strictly.**
@@ -149,7 +155,9 @@ vp test run                  # All passing
 vp check                     # svelte-check + TypeScript zero errors
 ```
 
-- **`cargo fmt --check` is the most commonly forgotten.** Always run `cargo fmt` after modifying Rust code before committing.
+- **Rust check order is fixed: `cargo fmt` → `cargo clippy` → `cargo test`.** Always format first, then lint, then test. Do not reverse this order.
+- **All Rust commands must run from `src-tauri/` directory.** Never run `cargo test`/`cargo clippy`/`cargo fmt` from the project root — it will fail silently or with confusing errors.
+- **Frontend commands use `npx vp <subcommand>`.** If `npx vp` is unavailable, fall back to `PATH="$PWD/node_modules/.bin:$PATH" vp <subcommand>`.
 - Performance test thresholds must account for CI environments (2-3x slower than local). For known-slow operations, use `{ timeout: 30000 }` with relaxed thresholds.
 
 ### Modal & Callback Threading Pattern
@@ -223,7 +231,7 @@ vp check                     # svelte-check + TypeScript zero errors
 
 - **When adding new fields to persisted structs, always add `#[serde(default)]`.** Otherwise, old data files will fail to deserialize, causing users to lose all data.
 - Vec-typed fields are naturally compatible (`Vec::default()` is an empty array), but scalar types other than Option need explicit `#[serde(default)]` or `#[serde(default = "...")]`.
-- After adding a field, search all manual construction sites for that struct (test helpers, import logic, etc.) and add initialization for the new field.
+- **Adding a new field must be an atomic operation.** In a single step: (1) modify the struct definition, (2) run `grep "StructName {" src-tauri/src/` to find ALL manual construction sites, (3) add the new field to every site. Only then run `cargo test`. Do not "add field → test → discover failures → fix one by one" — this wastes many iterations.
 
 ### Clippy Idiomatic Patterns
 
