@@ -1,28 +1,30 @@
 import { cancelRequest, sendRequest } from '../commands'
 import { DEFAULT_REQUEST_TIMEOUT } from '../constants'
 import {
-  type ApiKeyLocation,
-  type AuthType,
-  type BodyType,
   buildAuthConfig,
   buildRequestBody,
   createEmptyExtractionRule,
   createEmptyMultipartField,
   createEmptyPair,
-  type EditorTab,
-  type ExtractionRule,
   getBodyContent,
   getBodyType,
   getFormPairs,
   getGraphQLContent,
   getMultipartFields,
-  type HttpMethod,
-  type KeyValuePair,
-  type MultipartField,
-  type OAuthGrantType,
-  type ResponseRecord,
-  type ResponseTab,
-  type SavedRequest,
+} from '../type-helpers'
+import type {
+  ApiKeyLocation,
+  AuthType,
+  BodyType,
+  EditorTab,
+  ExtractionRule,
+  HttpMethod,
+  KeyValuePair,
+  MultipartField,
+  OAuthGrantType,
+  ResponseRecord,
+  ResponseTab,
+  SavedRequest,
 } from '../types'
 import { buildOAuth2ConfigFromFields, parseAuthConfig } from '../utils/auth-helpers'
 import { applyExtractionRules } from '../utils/extraction'

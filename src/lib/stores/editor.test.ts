@@ -29,8 +29,8 @@ vi.mock('./history.svelte', () => ({
   },
 }))
 
+import { createEmptyAuth, createEmptyPair } from '../type-helpers'
 import type { SavedRequest } from '../types'
-import { createEmptyAuth, createEmptyPair } from '../types'
 import { editorStore } from './editor.svelte'
 
 function makeSavedRequest(overrides: Partial<SavedRequest> = {}): SavedRequest {

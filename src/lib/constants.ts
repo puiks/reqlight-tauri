@@ -3,6 +3,7 @@ export const SAVE_DEBOUNCE_MS = 500
 export const DEFAULT_REQUEST_TIMEOUT = 30
 export const TOAST_DISMISS_MS = 2000
 export const MAX_HISTORY_ENTRIES = 100
+export const HIGHLIGHT_SIZE_LIMIT = 512 * 1024 // 512KB — skip syntax highlighting above this
 
 export const SPACING = {
   xs: 4,

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { HIGHLIGHT_SIZE_LIMIT } from "../../lib/constants";
   import type { ResponseRecord } from "../../lib/types";
   import { formatJson, highlightJson } from "../../lib/utils/json-highlighter";
   import { formatXml, highlightXml } from "../../lib/utils/xml-highlighter";
@@ -35,8 +36,10 @@
     return bodyText;
   });
 
+  const isBodyTooLarge = $derived(bodyText.length > HIGHLIGHT_SIZE_LIMIT);
+
   const syntaxHtml = $derived((): string | null => {
-    if (!showFormatted || searchQuery) return null;
+    if (!showFormatted || searchQuery || isBodyTooLarge) return null;
     const cat = contentCategory();
     if (cat === "json") return highlightJson(displayText());
     if (cat === "xml") return highlightXml(displayText());
@@ -138,6 +141,12 @@
   {#if response.isTruncated}
     <div class="truncation-warning">
       Response truncated — body is {(response.bodySize / 1024 / 1024).toFixed(1)} MB, only first 5 MB shown.
+    </div>
+  {/if}
+
+  {#if isBodyTooLarge && !response.isTruncated}
+    <div class="truncation-warning">
+      Syntax highlighting disabled — body exceeds 512 KB.
     </div>
   {/if}
 

@@ -1,13 +1,7 @@
 import { loadState, saveState } from '../commands'
 import { SAVE_DEBOUNCE_MS } from '../constants'
-import {
-  type AppState,
-  createEmptyBody,
-  createEmptyPair,
-  type ProxyConfig,
-  type RequestCollection,
-  type SavedRequest,
-} from '../types'
+import { createEmptyBody, createEmptyPair } from '../type-helpers'
+import type { AppState, ProxyConfig, RequestCollection, SavedRequest } from '../types'
 import { handleError } from '../utils/errors'
 import { environmentStore } from './environment.svelte'
 import { historyStore } from './history.svelte'

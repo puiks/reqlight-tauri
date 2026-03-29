@@ -1,11 +1,5 @@
-import {
-  type ApiKeyLocation,
-  type AuthConfig,
-  type AuthType,
-  getAuthType,
-  type OAuth2Config,
-  type OAuthGrantType,
-} from '../types'
+import { getAuthType } from '../type-helpers'
+import type { ApiKeyLocation, AuthConfig, AuthType, OAuth2Config, OAuthGrantType } from '../types'
 
 /** Fields representing the full auth editor state */
 export interface AuthFields {
