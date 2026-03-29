@@ -31,6 +31,7 @@ import type {
 } from '../types'
 import { buildOAuth2ConfigFromFields, parseAuthConfig } from '../utils/auth-helpers'
 import { applyExtractionRules } from '../utils/extraction'
+import { findUnmatchedVariables } from '../utils/variables'
 import { appStore } from './app.svelte'
 import { environmentStore } from './environment.svelte'
 import { historyStore } from './history.svelte'
@@ -82,6 +83,7 @@ class EditorStore {
   timeoutSecs = $state(DEFAULT_REQUEST_TIMEOUT)
   followRedirects = $state(true)
   protocolMode = $state<'http' | 'ws'>('http')
+  variableWarning = $state<string | null>(null)
 
   get isUrlValid(): boolean {
     const u = this.url.trim()
@@ -209,6 +211,19 @@ class EditorStore {
     this.isLoading = true
     this.errorMessage = null
     this.response = null
+
+    // Warn about unmatched variables before sending
+    const saved = this.toSavedRequest()
+    if (saved) {
+      const envVars = environmentStore.activeEnvironment?.variables ?? []
+      const unmatched = findUnmatchedVariables(saved, envVars)
+      if (unmatched.length > 0) {
+        this.variableWarning = `Unresolved: ${unmatched.map((v) => `{{${v}}}`).join(', ')}`
+      } else {
+        this.variableWarning = null
+      }
+    }
+
     try {
       const result = await sendRequest({
         method: this.method,
@@ -298,6 +313,7 @@ class EditorStore {
     this.response = null
     this.pinnedResponse = null
     this.errorMessage = null
+    this.variableWarning = null
     this.isDirty = false
   }
 

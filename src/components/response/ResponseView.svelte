@@ -32,6 +32,9 @@
       />
     </div>
   {:else if editorStore.response}
+    {#if editorStore.variableWarning}
+      <div class="variable-warning">⚠ {editorStore.variableWarning}</div>
+    {/if}
     <StatusBar response={editorStore.response} />
 
     <div class="tab-bar">
@@ -112,6 +115,13 @@
     to {
       transform: rotate(360deg);
     }
+  }
+  .variable-warning {
+    padding: var(--sp-xs) var(--sp-sm);
+    font-size: var(--fs-caption);
+    color: var(--color-warning);
+    background: color-mix(in srgb, var(--color-warning) 8%, transparent);
+    border-bottom: 1px solid var(--border-light);
   }
   .error-state,
   .empty {

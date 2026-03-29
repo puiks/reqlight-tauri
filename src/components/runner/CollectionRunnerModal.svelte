@@ -83,6 +83,11 @@
               {/each}
             </div>
           {/if}
+          {#if result.unmatchedVariables?.length}
+            <div class="result-warning">
+              ⚠ Unresolved variables: {result.unmatchedVariables.map(v => `{{${v}}}`).join(', ')}
+            </div>
+          {/if}
           {#if result.errorMessage}
             <div class="result-error">{result.errorMessage}</div>
           {/if}
@@ -262,6 +267,12 @@
     white-space: pre-wrap;
     word-break: break-word;
     margin: 0;
+  }
+  .result-warning {
+    padding: 2px var(--sp-sm) var(--sp-xs) calc(20px + var(--sp-sm) + var(--sp-sm));
+    font-size: var(--fs-caption);
+    color: var(--color-warning);
+    word-break: break-word;
   }
   .result-error {
     padding: 2px var(--sp-sm) var(--sp-xs) calc(20px + var(--sp-sm) + var(--sp-sm));

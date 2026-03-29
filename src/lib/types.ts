@@ -206,6 +206,8 @@ export interface CollectionRunResult {
   assertionResults?: AssertionResult[]
   /** Truncated response body for debugging failed requests (first 2KB) */
   responseBody?: string | null
+  /** Variable names referenced in request but missing from environment */
+  unmatchedVariables?: string[]
 }
 
 export type CollectionRunStatus = 'idle' | 'running' | 'stopped' | 'completed'

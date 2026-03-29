@@ -7,6 +7,10 @@ edition = "2021"
 name = "reqlight_lib"
 crate-type = ["lib", "cdylib", "staticlib"]
 
+[[bin]]
+name = "reqlight-cli"
+path = "src/cli.rs"
+
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
@@ -26,6 +30,8 @@ serde_yaml = "0.9"
 urlencoding = "2"
 base64 = "0.22"
 sha2 = "0.10"
+clap = { version = "4", features = ["derive"] }
+csv = "1"
 thiserror = "2"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }

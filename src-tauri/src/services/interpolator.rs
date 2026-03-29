@@ -176,6 +176,49 @@ pub fn interpolate_auth(auth: &AuthConfig, variables: &[KeyValuePair]) -> AuthCo
     }
 }
 
+/// Find variable names referenced in `input` that don't exist in `variables`.
+pub fn find_unmatched(input: &str, variables: &[KeyValuePair]) -> Vec<String> {
+    if !input.contains("{{") {
+        return vec![];
+    }
+
+    let lookup: std::collections::HashSet<&str> = variables
+        .iter()
+        .filter(|v| v.is_enabled)
+        .map(|v| v.key.as_str())
+        .collect();
+
+    let mut unmatched = Vec::new();
+    let bytes = input.as_bytes();
+    let len = bytes.len();
+    let mut i = 0;
+
+    while i < len {
+        if i + 1 < len && bytes[i] == b'{' && bytes[i + 1] == b'{' {
+            let var_start = i + 2;
+            let mut j = var_start;
+            while j + 1 < len {
+                if bytes[j] == b'}' && bytes[j + 1] == b'}' {
+                    let var_name = &input[var_start..j];
+                    if !lookup.contains(var_name) && !unmatched.contains(&var_name.to_string()) {
+                        unmatched.push(var_name.to_string());
+                    }
+                    i = j + 2;
+                    break;
+                }
+                j += 1;
+            }
+            if j + 1 >= len {
+                break;
+            }
+        } else {
+            i += 1;
+        }
+    }
+
+    unmatched
+}
+
 #[cfg(test)]
 #[path = "interpolator_tests.rs"]
 mod tests;

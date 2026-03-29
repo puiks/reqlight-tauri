@@ -37,15 +37,14 @@ struct Connection {
 }
 
 /// Manages active WebSocket connections.
+#[derive(Default)]
 pub struct WsManager {
     connections: Arc<Mutex<HashMap<String, Connection>>>,
 }
 
 impl WsManager {
     pub fn new() -> Self {
-        Self {
-            connections: Arc::new(Mutex::new(HashMap::new())),
-        }
+        Self::default()
     }
 
     /// Connect to a WebSocket URL with optional custom headers.

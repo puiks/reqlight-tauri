@@ -1,3 +1,4 @@
+pub mod assertion;
 pub mod code_generator;
 pub mod collection_export;
 pub mod collection_import;
@@ -8,6 +9,7 @@ pub mod curl_parser;
 pub mod har_import;
 pub mod http_client;
 pub mod interpolator;
+pub mod junit;
 pub mod keychain;
 pub mod oauth;
 pub mod openapi_import;

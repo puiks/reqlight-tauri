@@ -5,6 +5,7 @@
   import { formatXml, highlightXml } from "../../lib/utils/xml-highlighter";
   import { findMatches, highlightMatches } from "../../lib/utils/text-search";
   import ResponseSearch from "./ResponseSearch.svelte";
+  import { toastStore } from "../../lib/stores/toast.svelte";
 
   let { response }: { response: ResponseRecord } = $props();
 
@@ -77,6 +78,7 @@
 
   function handleCopy() {
     navigator.clipboard.writeText(displayText());
+    toastStore.show("Body copied");
   }
 
   function toggleSearch() {

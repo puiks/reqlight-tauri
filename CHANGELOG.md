@@ -15,11 +15,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Runner results display per-assertion pass/fail details with actual vs expected values
 - Runner results include response body preview (first 2KB) for failed requests
 - Right-click context menu on requests with "Duplicate" and "Delete" actions
+- CLI headless runner (`reqlight-cli`) for CI/CD integration with `--file`, `--collection`, `--env` flags
+- JUnit XML report export via `--junit` flag in CLI
+- Data-driven testing: CSV and JSON data file support via `--data` flag for parameterized test runs
+- Rust-side assertion evaluator mirroring frontend logic for CLI test execution
+- Unresolved variable warnings in editor response view, collection runner results, and CLI output
+- Response header "Copy All" button and per-header copy-value buttons
+- Toast confirmation feedback for response body and header copy actions
+- `--fail-fast` flag in CLI to stop on first failure
 
 ### Fixed
 
 - Assertion filter logic: incomplete assertions (missing expected value or source value) are no longer silently saved
 - Context menu delete on requests now correctly deletes the request instead of looking up as collection
+- Clippy `new_without_default` warning on `WsManager`
 
 ## [0.5.2] - 2026-03-29
 

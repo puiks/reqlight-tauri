@@ -7,6 +7,7 @@ import type {
 } from '../types'
 import { evaluateAssertions } from '../utils/assertion'
 import { applyExtractionRules } from '../utils/extraction'
+import { findUnmatchedVariables } from '../utils/variables'
 import { appStore } from './app.svelte'
 import { environmentStore } from './environment.svelte'
 
@@ -59,6 +60,10 @@ class RunnerStore {
   }
 
   private async executeRequest(request: SavedRequest): Promise<CollectionRunResult> {
+    // Detect unmatched variables before sending
+    const envVars = environmentStore.activeEnvironment?.variables ?? []
+    const unmatchedVariables = findUnmatchedVariables(request, envVars)
+
     const base: Omit<
       CollectionRunResult,
       'statusCode' | 'elapsedTime' | 'passed' | 'errorMessage'
@@ -67,6 +72,7 @@ class RunnerStore {
       requestName: request.name,
       method: request.method,
       url: request.url,
+      unmatchedVariables: unmatchedVariables.length > 0 ? unmatchedVariables : undefined,
     }
 
     try {

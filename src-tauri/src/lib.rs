@@ -1,8 +1,8 @@
 mod commands;
 mod constants;
 mod error;
-mod models;
-mod services;
+pub mod models;
+pub mod services;
 #[cfg(test)]
 mod test_utils;
 
