@@ -87,6 +87,7 @@ fn parse_har_request(req: &serde_json::Value, index: i32, now: &str) -> Option<S
         created_at: now.to_string(),
         updated_at: now.to_string(),
         response_extractions: vec![],
+        timeout_secs: None,
     })
 }
 

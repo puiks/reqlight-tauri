@@ -25,7 +25,7 @@ import {
   type SavedRequest,
 } from '../types'
 import { buildOAuth2ConfigFromFields, parseAuthConfig } from '../utils/auth-helpers'
-import { extractByPath } from '../utils/jsonpath'
+import { applyExtractionRules } from '../utils/extraction'
 import { appStore } from './app.svelte'
 import { environmentStore } from './environment.svelte'
 import { historyStore } from './history.svelte'
@@ -118,6 +118,7 @@ class EditorStore {
       ? [...request.responseExtractions]
       : [createEmptyExtractionRule()]
     this.applyAuthFields(parseAuthConfig(request.auth))
+    this.timeoutSecs = request.timeoutSecs ?? DEFAULT_REQUEST_TIMEOUT
     this.response = null
     this.errorMessage = null
     this.isDirty = false
@@ -176,6 +177,7 @@ class EditorStore {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       responseExtractions: this.extractionRules.filter((r) => r.variableName || r.jsonPath),
+      timeoutSecs: this.timeoutSecs !== DEFAULT_REQUEST_TIMEOUT ? this.timeoutSecs : undefined,
     }
   }
 
@@ -240,25 +242,7 @@ class EditorStore {
   }
 
   private applyExtractions(response: ResponseRecord) {
-    if (!response.bodyString || !response.isJson) return
-    const enabledRules = this.extractionRules.filter(
-      (r) => r.isEnabled && r.variableName && r.jsonPath,
-    )
-    if (enabledRules.length === 0) return
-
-    let parsed: unknown
-    try {
-      parsed = JSON.parse(response.bodyString)
-    } catch {
-      return
-    }
-
-    for (const rule of enabledRules) {
-      const value = extractByPath(parsed, rule.jsonPath)
-      if (value !== undefined) {
-        environmentStore.setVariable(rule.variableName, value)
-      }
-    }
+    applyExtractionRules(this.extractionRules, response)
   }
 
   /** Load editor state from a history entry that has no saved-request match. */

@@ -59,7 +59,7 @@ pub async fn send_request(
             timeout_secs,
             follow_redirects,
             proxy_config.as_ref(),
-        ) => result,
+        ) => result.map_err(String::from),
         _ = cancel.notified() => Err("Request cancelled".to_string()),
     }
 }

@@ -7,6 +7,8 @@ use tokio::sync::Mutex;
 use tokio_tungstenite::tungstenite::client::IntoClientRequest;
 use tokio_tungstenite::tungstenite::Message;
 
+use crate::error::AppError;
+
 /// Payload emitted to the frontend via Tauri events.
 #[derive(Clone, Serialize)]
 pub struct WsEvent {
@@ -54,17 +56,20 @@ impl WsManager {
         url: &str,
         headers: &[(String, String)],
         emit_fn: F,
-    ) -> Result<(), String>
+    ) -> Result<(), AppError>
     where
         F: Fn(WsEvent) + Send + Sync + 'static,
     {
+        tracing::info!(%url, %connection_id, "Opening WebSocket connection");
+
         // Validate URL before connecting
-        let _ = url::Url::parse(url).map_err(|e| format!("Invalid WebSocket URL: {e}"))?;
+        let _ = url::Url::parse(url)
+            .map_err(|e| AppError::Validation(format!("Invalid WebSocket URL: {e}")))?;
 
         // Build request with custom headers
         let mut request = url
             .into_client_request()
-            .map_err(|e| format!("Invalid WebSocket URL: {e}"))?;
+            .map_err(|e| AppError::Validation(format!("Invalid WebSocket URL: {e}")))?;
         for (key, value) in headers {
             if let (Ok(name), Ok(val)) = (
                 key.parse::<tokio_tungstenite::tungstenite::http::HeaderName>(),
@@ -76,7 +81,7 @@ impl WsManager {
 
         let (ws_stream, _) = tokio_tungstenite::connect_async(request)
             .await
-            .map_err(|e| format!("WebSocket connection failed: {e}"))?;
+            .map_err(|e| AppError::WebSocket(format!("Connection failed: {e}")))?;
 
         let (sender, mut receiver) = ws_stream.split();
         let (cancel_tx, mut cancel_rx) = tokio::sync::watch::channel(false);
@@ -146,26 +151,28 @@ impl WsManager {
     }
 
     /// Send a text message on an active connection.
-    pub async fn send(&self, connection_id: &str, message: &str) -> Result<(), String> {
+    pub async fn send(&self, connection_id: &str, message: &str) -> Result<(), AppError> {
         let mut conns = self.connections.lock().await;
         let conn = conns
             .get_mut(connection_id)
-            .ok_or_else(|| format!("No active connection: {connection_id}"))?;
+            .ok_or_else(|| AppError::WebSocket(format!("No active connection: {connection_id}")))?;
 
         conn.sender
             .send(Message::Text(message.to_string()))
             .await
-            .map_err(|e| format!("Failed to send message: {e}"))
+            .map_err(|e| AppError::WebSocket(format!("Failed to send message: {e}")))
     }
 
     /// Disconnect an active connection.
-    pub async fn disconnect(&self, connection_id: &str) -> Result<(), String> {
+    pub async fn disconnect(&self, connection_id: &str) -> Result<(), AppError> {
         let mut conns = self.connections.lock().await;
         if let Some(conn) = conns.remove(connection_id) {
             let _ = conn.cancel.send(true);
             Ok(())
         } else {
-            Err(format!("No active connection: {connection_id}"))
+            Err(AppError::WebSocket(format!(
+                "No active connection: {connection_id}"
+            )))
         }
     }
 }

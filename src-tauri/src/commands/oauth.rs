@@ -1,3 +1,4 @@
+use crate::constants::OAUTH_CALLBACK_TIMEOUT_SECS;
 use crate::services::oauth;
 use crate::SharedHttpClient;
 use serde::{Deserialize, Serialize};
@@ -46,16 +47,21 @@ pub struct AuthCodeFlowParams {
     pub scopes: String,
 }
 
-/// IPC: Start the Authorization Code flow.
+/// IPC: Start the Authorization Code flow with PKCE.
 /// Opens the system browser and waits for the callback.
 #[tauri::command]
 pub async fn oauth_authorization_code(
     client: State<'_, SharedHttpClient>,
     params: AuthCodeFlowParams,
 ) -> Result<OAuthTokenResult, String> {
+    // Generate PKCE challenge
+    let pkce = oauth::generate_pkce_challenge();
+
+    // Generate state parameter for CSRF protection
+    let state = uuid::Uuid::new_v4().to_string();
+
     // Start local callback server
     let (redirect_uri, code) = {
-        // Start server first, then open browser
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
             .await
             .map_err(|e| format!("Failed to start callback server: {e}"))?;
@@ -65,18 +71,21 @@ pub async fn oauth_authorization_code(
             .port();
         let redirect_uri = format!("http://127.0.0.1:{port}/callback");
 
-        // Build authorization URL
+        // Build authorization URL with PKCE and state
         let auth_url = build_auth_url(
             &params.auth_url,
             &params.client_id,
             &redirect_uri,
             &params.scopes,
+            &pkce.code_challenge,
+            &state,
         );
 
         // Open browser
         open::that(&auth_url).map_err(|e| format!("Failed to open browser: {e}"))?;
 
         // Wait for callback (120s timeout)
+        let expected_state = state.clone();
         let accept_future = async {
             let (stream, _) = listener
                 .accept()
@@ -93,7 +102,20 @@ pub async fn oauth_authorization_code(
                 .map_err(|e| format!("Read error: {e}"))?;
             let request_str = String::from_utf8_lossy(&buf[..n]);
 
-            let code = oauth::extract_code_from_request(&request_str)?;
+            let result = oauth::extract_code_from_request(&request_str)?;
+
+            // Validate state parameter to prevent CSRF
+            match result.state.as_deref() {
+                Some(returned_state) if returned_state == expected_state => {}
+                Some(_) => {
+                    return Err(
+                        "State mismatch: possible CSRF attack. Please try again.".to_string()
+                    );
+                }
+                None => {
+                    return Err("Missing state parameter in callback".to_string());
+                }
+            }
 
             let response = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n\
                 <html><body><h2>Authorization successful!</h2>\
@@ -102,18 +124,23 @@ pub async fn oauth_authorization_code(
             let _ = stream.writable().await;
             let _ = stream.try_write(response.as_bytes());
 
-            Ok::<String, String>(code)
+            Ok::<String, String>(result.code)
         };
 
-        let code = tokio::time::timeout(std::time::Duration::from_secs(120), accept_future)
-            .await
-            .map_err(|_| "Authorization timed out (120s). Please try again.".to_string())?
-            .map_err(|e: String| e)?;
+        let code = tokio::time::timeout(
+            std::time::Duration::from_secs(OAUTH_CALLBACK_TIMEOUT_SECS),
+            accept_future,
+        )
+        .await
+        .map_err(|_| {
+            format!("Authorization timed out ({OAUTH_CALLBACK_TIMEOUT_SECS}s). Please try again.")
+        })?
+        .map_err(|e: String| e)?;
 
         (redirect_uri, code)
     };
 
-    // Exchange code for token
+    // Exchange code for token with PKCE code_verifier
     let resp = oauth::authorization_code_exchange(
         &client.0,
         &params.token_url,
@@ -121,6 +148,7 @@ pub async fn oauth_authorization_code(
         &params.client_id,
         &params.client_secret,
         &redirect_uri,
+        Some(&pkce.code_verifier),
     )
     .await?;
 
@@ -156,15 +184,81 @@ pub async fn oauth_refresh_token(
     })
 }
 
-fn build_auth_url(auth_url: &str, client_id: &str, redirect_uri: &str, scopes: &str) -> String {
+fn build_auth_url(
+    auth_url: &str,
+    client_id: &str,
+    redirect_uri: &str,
+    scopes: &str,
+    code_challenge: &str,
+    state: &str,
+) -> String {
     let mut url = format!(
-        "{}?response_type=code&client_id={}&redirect_uri={}",
+        "{}?response_type=code&client_id={}&redirect_uri={}&code_challenge={}&code_challenge_method=S256&state={}",
         auth_url,
         urlencoding::encode(client_id),
         urlencoding::encode(redirect_uri),
+        urlencoding::encode(code_challenge),
+        urlencoding::encode(state),
     );
     if !scopes.is_empty() {
         url.push_str(&format!("&scope={}", urlencoding::encode(scopes)));
     }
     url
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn build_auth_url_includes_all_required_params() {
+        let url = build_auth_url(
+            "https://auth.example.com/authorize",
+            "my-client",
+            "http://127.0.0.1:8080/callback",
+            "openid profile",
+            "abc123challenge",
+            "state-xyz",
+        );
+
+        assert!(url.starts_with("https://auth.example.com/authorize?"));
+        assert!(url.contains("response_type=code"));
+        assert!(url.contains("client_id=my-client"));
+        assert!(url.contains("redirect_uri=http%3A%2F%2F127.0.0.1%3A8080%2Fcallback"));
+        assert!(url.contains("code_challenge=abc123challenge"));
+        assert!(url.contains("code_challenge_method=S256"));
+        assert!(url.contains("state=state-xyz"));
+        assert!(url.contains("scope=openid%20profile"));
+    }
+
+    #[test]
+    fn build_auth_url_omits_scope_when_empty() {
+        let url = build_auth_url(
+            "https://auth.example.com/authorize",
+            "client-id",
+            "http://localhost/cb",
+            "",
+            "challenge",
+            "state",
+        );
+
+        assert!(!url.contains("scope="));
+    }
+
+    #[test]
+    fn build_auth_url_encodes_special_characters() {
+        let url = build_auth_url(
+            "https://auth.example.com/authorize",
+            "client with spaces",
+            "http://localhost/cb",
+            "read write",
+            "ch+all/enge=",
+            "state&param",
+        );
+
+        assert!(url.contains("client_id=client%20with%20spaces"));
+        assert!(url.contains("scope=read%20write"));
+        assert!(url.contains("code_challenge=ch%2Ball%2Fenge%3D"));
+        assert!(url.contains("state=state%26param"));
+    }
 }

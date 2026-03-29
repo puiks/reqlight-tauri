@@ -3,11 +3,9 @@ import type {
   CollectionRunResult,
   CollectionRunStatus,
   RequestCollection,
-  ResponseRecord,
   SavedRequest,
 } from '../types'
-import { buildAuthConfig, getAuthType } from '../types'
-import { extractByPath } from '../utils/jsonpath'
+import { applyExtractionRules } from '../utils/extraction'
 import { appStore } from './app.svelte'
 import { environmentStore } from './environment.svelte'
 
@@ -71,54 +69,20 @@ class RunnerStore {
     }
 
     try {
-      const authType = getAuthType(request.auth)
-      const auth = buildAuthConfig(
-        authType,
-        {
-          token:
-            request.auth && typeof request.auth === 'object' && 'bearerToken' in request.auth
-              ? request.auth.bearerToken.token
-              : '',
-        },
-        {
-          username:
-            request.auth && typeof request.auth === 'object' && 'basicAuth' in request.auth
-              ? request.auth.basicAuth.username
-              : '',
-          password:
-            request.auth && typeof request.auth === 'object' && 'basicAuth' in request.auth
-              ? request.auth.basicAuth.password
-              : '',
-        },
-        {
-          key:
-            request.auth && typeof request.auth === 'object' && 'apiKey' in request.auth
-              ? request.auth.apiKey.key
-              : '',
-          value:
-            request.auth && typeof request.auth === 'object' && 'apiKey' in request.auth
-              ? request.auth.apiKey.value
-              : '',
-          location:
-            request.auth && typeof request.auth === 'object' && 'apiKey' in request.auth
-              ? request.auth.apiKey.location
-              : 'header',
-        },
-      )
-
       const response = await sendRequest({
         method: request.method,
         url: request.url,
         headers: request.headers,
         queryParams: request.queryParams,
         body: request.body,
-        auth,
+        auth: request.auth ?? 'none',
+        timeoutSecs: request.timeoutSecs,
         environment: environmentStore.activeEnvironment,
         proxyConfig: appStore.proxyConfig.enabled ? appStore.proxyConfig : undefined,
       })
 
       // Apply extractions
-      this.applyExtractions(request, response)
+      applyExtractionRules(request.responseExtractions ?? [], response)
 
       const passed = response.statusCode >= 200 && response.statusCode < 300
       return {
@@ -134,28 +98,6 @@ class RunnerStore {
         elapsedTime: null,
         passed: false,
         errorMessage: e instanceof Error ? e.message : String(e),
-      }
-    }
-  }
-
-  private applyExtractions(request: SavedRequest, response: ResponseRecord) {
-    if (!response.bodyString || !response.isJson) return
-    const rules = (request.responseExtractions ?? []).filter(
-      (r) => r.isEnabled && r.variableName && r.jsonPath,
-    )
-    if (rules.length === 0) return
-
-    let parsed: unknown
-    try {
-      parsed = JSON.parse(response.bodyString)
-    } catch {
-      return
-    }
-
-    for (const rule of rules) {
-      const value = extractByPath(parsed, rule.jsonPath)
-      if (value !== undefined) {
-        environmentStore.setVariable(rule.variableName, value)
       }
     }
   }

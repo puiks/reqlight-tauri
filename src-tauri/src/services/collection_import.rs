@@ -84,6 +84,7 @@ fn convert_request(name: &str, req: &PostmanRequest, sort_order: i32) -> SavedRe
         created_at: now.clone(),
         updated_at: now,
         response_extractions: vec![],
+        timeout_secs: None,
     }
 }
 

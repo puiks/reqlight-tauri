@@ -68,6 +68,7 @@ pub fn import_openapi(input: &str) -> Result<Vec<RequestCollection>, String> {
                 created_at: now.clone(),
                 updated_at: now,
                 response_extractions: vec![],
+                timeout_secs: None,
             };
             order += 1;
 

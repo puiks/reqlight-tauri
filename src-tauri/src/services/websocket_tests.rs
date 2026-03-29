@@ -125,3 +125,34 @@ async fn invalid_url_returns_error() {
         .await;
     assert!(result.is_err());
 }
+
+#[tokio::test]
+async fn send_to_nonexistent_connection_returns_error() {
+    let manager = WsManager::new();
+    let result = manager.send("does-not-exist", "hello").await;
+    assert!(result.is_err());
+    let err = result.unwrap_err().to_string();
+    assert!(err.contains("No active connection"), "got: {err}");
+}
+
+#[tokio::test]
+async fn disconnect_nonexistent_connection_returns_error() {
+    let manager = WsManager::new();
+    let result = manager.disconnect("does-not-exist").await;
+    assert!(result.is_err());
+    let err = result.unwrap_err().to_string();
+    assert!(err.contains("No active connection"), "got: {err}");
+}
+
+#[tokio::test]
+async fn connect_to_unreachable_host_returns_error() {
+    let manager = WsManager::new();
+    let emit = |_event: WsEvent| {};
+    // Port 1 is almost certainly not running a WebSocket server
+    let result = manager
+        .connect("test-unreach".to_string(), "ws://127.0.0.1:1/ws", &[], emit)
+        .await;
+    assert!(result.is_err());
+    let err = result.unwrap_err().to_string();
+    assert!(err.contains("Connection failed"), "got: {err}");
+}

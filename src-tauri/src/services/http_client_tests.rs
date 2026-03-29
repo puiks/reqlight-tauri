@@ -265,7 +265,8 @@ async fn invalid_url_returns_error() {
     .await;
 
     assert!(result.is_err());
-    assert!(result.unwrap_err().contains("Invalid URL"));
+    let err = result.unwrap_err().to_string();
+    assert!(err.contains("Invalid URL"), "Got: {err}");
 }
 
 #[tokio::test]
@@ -420,12 +421,12 @@ async fn timeout_returns_error() {
     .await;
 
     assert!(result.is_err());
-    let err = result.unwrap_err();
+    let err = result.unwrap_err().to_string();
     assert!(
-        err.contains("Request failed")
-            || err.contains("timed out")
+        err.contains("timed out")
             || err.contains("timeout")
-            || err.contains("Failed to read response body"),
+            || err.contains("Network error")
+            || err.contains("Request timed out"),
         "Expected timeout error, got: {err}"
     );
 }

@@ -44,6 +44,7 @@ pub async fn ws_connect(
     ws_manager
         .connect(connection_id, &final_url, &final_headers, emit)
         .await
+        .map_err(String::from)
 }
 
 #[tauri::command]
@@ -52,7 +53,10 @@ pub async fn ws_send(
     message: String,
     ws_manager: State<'_, WsManager>,
 ) -> Result<(), String> {
-    ws_manager.send(&connection_id, &message).await
+    ws_manager
+        .send(&connection_id, &message)
+        .await
+        .map_err(String::from)
 }
 
 #[tauri::command]
@@ -60,5 +64,8 @@ pub async fn ws_disconnect(
     connection_id: String,
     ws_manager: State<'_, WsManager>,
 ) -> Result<(), String> {
-    ws_manager.disconnect(&connection_id).await
+    ws_manager
+        .disconnect(&connection_id)
+        .await
+        .map_err(String::from)
 }

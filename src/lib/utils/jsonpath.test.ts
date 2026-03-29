@@ -98,3 +98,79 @@ describe('extractByPath', () => {
     expect(extractByPath(obj, '$.val')).toBe('null')
   })
 })
+
+describe('extractByPath - wildcard [*]', () => {
+  it('collects all elements of an array', () => {
+    const data = { items: [1, 2, 3] }
+    expect(extractByPath(data, '$.items[*]')).toBe('[1,2,3]')
+  })
+
+  it('collects a field from all array elements', () => {
+    const data = {
+      users: [
+        { name: 'Alice' },
+        { name: 'Bob' },
+        { name: 'Charlie' },
+      ],
+    }
+    const result = extractByPath(data, '$.users[*].name')
+    expect(result).toBe('["Alice","Bob","Charlie"]')
+  })
+
+  it('collects all values of an object via wildcard', () => {
+    const data = { obj: { a: 1, b: 2, c: 3 } }
+    const result = extractByPath(data, '$.obj[*]')
+    const parsed = JSON.parse(result!)
+    expect(parsed).toEqual(expect.arrayContaining([1, 2, 3]))
+    expect(parsed).toHaveLength(3)
+  })
+
+  it('returns undefined when wildcard on non-iterable', () => {
+    const data = { val: 42 }
+    expect(extractByPath(data, '$.val[*]')).toBeUndefined()
+  })
+})
+
+describe('extractByPath - recursive descent (..)', () => {
+  const nested = {
+    store: {
+      book: [
+        { title: 'A', price: 8.95 },
+        { title: 'B', price: 12.99 },
+      ],
+      name: 'My Store',
+    },
+    metadata: { price: 0 },
+  }
+
+  it('finds all matching keys recursively', () => {
+    const result = extractByPath(nested, '$..price')
+    const parsed = JSON.parse(result!)
+    expect(parsed).toEqual(expect.arrayContaining([8.95, 12.99, 0]))
+    expect(parsed).toHaveLength(3)
+  })
+
+  it('finds nested key across levels', () => {
+    const data = { a: { name: 'first' }, b: { c: { name: 'second' } } }
+    const result = extractByPath(data, '$..name')
+    const parsed = JSON.parse(result!)
+    expect(parsed).toEqual(expect.arrayContaining(['first', 'second']))
+    expect(parsed).toHaveLength(2)
+  })
+
+  it('recursive descent followed by array index', () => {
+    const result = extractByPath(nested, '$..book[0].title')
+    expect(result).toBe('A')
+  })
+
+  it('returns undefined when recursive key not found', () => {
+    expect(extractByPath(nested, '$..nonexistent')).toBeUndefined()
+  })
+
+  it('recursive descent collects from arrays too', () => {
+    const data = { items: [{ id: 1 }, { id: 2 }] }
+    const result = extractByPath(data, '$..id')
+    const parsed = JSON.parse(result!)
+    expect(parsed).toEqual([1, 2])
+  })
+})

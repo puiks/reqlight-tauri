@@ -3,69 +3,49 @@ use std::time::{Duration, Instant};
 use base64::{engine::general_purpose::STANDARD, Engine};
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 
+use crate::constants::{DEFAULT_TIMEOUT_SECS, MAX_RESPONSE_BODY_BYTES};
+use crate::error::AppError;
 use crate::models::{
     ApiKeyLocation, AuthConfig, HeaderPair, HttpMethod, KeyValuePair, ProxyConfig, RequestBody,
     ResponseRecord,
 };
 
-const DEFAULT_TIMEOUT_SECS: u64 = 30;
-/// Max response body size we'll read into memory (5 MB)
-const MAX_RESPONSE_BODY_BYTES: usize = 5 * 1024 * 1024;
+/// Parse URL and append enabled query parameters.
+fn build_url(url: &str, query_params: &[KeyValuePair]) -> Result<reqwest::Url, AppError> {
+    let mut parsed =
+        reqwest::Url::parse(url).map_err(|e| AppError::Validation(format!("Invalid URL: {e}")))?;
 
-/// Execute an HTTP request and return a ResponseRecord.
-/// Accepts a shared `reqwest::Client` (with cookie_store enabled) so that
-/// cookies persist across requests within the same session.
-#[allow(clippy::too_many_arguments)]
-pub async fn execute(
-    client: &reqwest::Client,
-    method: &HttpMethod,
-    url: &str,
-    headers: &[KeyValuePair],
-    query_params: &[KeyValuePair],
-    body: &RequestBody,
-    auth: &AuthConfig,
-    timeout_secs: Option<u64>,
-    follow_redirects: Option<bool>,
-    proxy_config: Option<&ProxyConfig>,
-) -> Result<ResponseRecord, String> {
-    // Build URL with query params
-    let mut parsed_url = reqwest::Url::parse(url).map_err(|e| format!("Invalid URL: {e}"))?;
-
-    {
-        let enabled_params: Vec<_> = query_params
-            .iter()
-            .filter(|p| p.is_enabled && !p.key.is_empty())
-            .collect();
-        if !enabled_params.is_empty() {
-            let mut pairs = parsed_url.query_pairs_mut();
-            for p in &enabled_params {
-                pairs.append_pair(&p.key, &p.value);
-            }
+    let enabled: Vec<_> = query_params
+        .iter()
+        .filter(|p| p.is_enabled && !p.key.is_empty())
+        .collect();
+    if !enabled.is_empty() {
+        let mut pairs = parsed.query_pairs_mut();
+        for p in &enabled {
+            pairs.append_pair(&p.key, &p.value);
         }
     }
 
-    let reqwest_method = match method {
-        HttpMethod::Get => reqwest::Method::GET,
-        HttpMethod::Post => reqwest::Method::POST,
-        HttpMethod::Put => reqwest::Method::PUT,
-        HttpMethod::Patch => reqwest::Method::PATCH,
-        HttpMethod::Delete => reqwest::Method::DELETE,
-        HttpMethod::Head => reqwest::Method::HEAD,
-        HttpMethod::Options => reqwest::Method::OPTIONS,
-    };
+    Ok(parsed)
+}
 
-    // Set headers
-    let mut header_map = HeaderMap::new();
+/// Convert user headers into a reqwest HeaderMap.
+fn build_headers(headers: &[KeyValuePair]) -> HeaderMap {
+    let mut map = HeaderMap::new();
     for h in headers.iter().filter(|h| h.is_enabled && !h.key.is_empty()) {
         if let (Ok(name), Ok(value)) = (
             HeaderName::from_bytes(h.key.as_bytes()),
             HeaderValue::from_str(&h.value),
         ) {
-            header_map.insert(name, value);
+            map.insert(name, value);
         }
     }
+    map
+}
 
-    // Apply auth configuration (does not override manually set Authorization header)
+/// Apply auth configuration to headers and URL.
+/// Does not override a manually set Authorization header.
+fn apply_auth(auth: &AuthConfig, header_map: &mut HeaderMap, parsed_url: &mut reqwest::Url) {
     match auth {
         AuthConfig::BearerToken { token } if !token.is_empty() => {
             if !header_map.contains_key(reqwest::header::AUTHORIZATION) {
@@ -108,43 +88,52 @@ pub async fn execute(
         }
         _ => {}
     }
+}
 
-    // Build a temporary client when proxy or no-redirect is needed.
-    let needs_custom_client = follow_redirects == Some(false)
+/// Build an effective HTTP client, creating a custom one when proxy or
+/// no-redirect settings require it.
+fn build_client<'a>(
+    default_client: &'a reqwest::Client,
+    follow_redirects: Option<bool>,
+    proxy_config: Option<&ProxyConfig>,
+) -> Result<std::borrow::Cow<'a, reqwest::Client>, AppError> {
+    let needs_custom = follow_redirects == Some(false)
         || proxy_config.is_some_and(|p| p.enabled && !p.proxy_url.is_empty());
-    let custom_client;
-    let effective_client = if needs_custom_client {
-        let mut builder = reqwest::Client::builder().cookie_store(true);
-        if follow_redirects == Some(false) {
-            builder = builder.redirect(reqwest::redirect::Policy::none());
-        }
-        if let Some(proxy) = proxy_config.filter(|p| p.enabled && !p.proxy_url.is_empty()) {
-            let mut p = reqwest::Proxy::all(&proxy.proxy_url)
-                .map_err(|e| format!("Invalid proxy URL: {e}"))?;
-            if !proxy.no_proxy.is_empty() {
-                if let Some(no_proxy) = reqwest::NoProxy::from_string(&proxy.no_proxy) {
-                    p = p.no_proxy(Some(no_proxy));
-                }
+
+    if !needs_custom {
+        return Ok(std::borrow::Cow::Borrowed(default_client));
+    }
+
+    let mut builder = reqwest::Client::builder().cookie_store(true);
+    if follow_redirects == Some(false) {
+        builder = builder.redirect(reqwest::redirect::Policy::none());
+    }
+    if let Some(proxy) = proxy_config.filter(|p| p.enabled && !p.proxy_url.is_empty()) {
+        let mut p = reqwest::Proxy::all(&proxy.proxy_url)
+            .map_err(|e| AppError::Network(format!("Invalid proxy URL: {e}")))?;
+        if !proxy.no_proxy.is_empty() {
+            if let Some(no_proxy) = reqwest::NoProxy::from_string(&proxy.no_proxy) {
+                p = p.no_proxy(Some(no_proxy));
             }
-            builder = builder.proxy(p);
         }
-        custom_client = builder
-            .build()
-            .map_err(|e| format!("Failed to create HTTP client: {e}"))?;
-        &custom_client
-    } else {
-        client
-    };
+        builder = builder.proxy(p);
+    }
 
-    // Build request AFTER auth (ApiKey::Query may modify parsed_url)
-    let mut request = effective_client
-        .request(reqwest_method, parsed_url)
-        .timeout(Duration::from_secs(
-            timeout_secs.unwrap_or(DEFAULT_TIMEOUT_SECS),
-        ));
+    let client = builder
+        .build()
+        .map_err(|e| AppError::Network(format!("Failed to create HTTP client: {e}")))?;
+    Ok(std::borrow::Cow::Owned(client))
+}
 
-    // Set body and auto-set Content-Type if not specified
+/// Attach request body and set appropriate Content-Type headers.
+/// Returns `(request_builder, is_multipart)`.
+async fn attach_body(
+    mut request: reqwest::RequestBuilder,
+    body: &RequestBody,
+    header_map: &mut HeaderMap,
+) -> Result<(reqwest::RequestBuilder, bool), AppError> {
     let mut is_multipart = false;
+
     match body {
         RequestBody::Json(text) => {
             if !header_map.contains_key(reqwest::header::CONTENT_TYPE) {
@@ -186,7 +175,6 @@ pub async fn execute(
                     HeaderValue::from_static("application/json"),
                 );
             }
-            // Build the standard GraphQL JSON body: { "query": "...", "variables": {...} }
             let vars_value: serde_json::Value = if variables.trim().is_empty() {
                 serde_json::Value::Null
             } else {
@@ -205,7 +193,7 @@ pub async fn execute(
                 if let Some(ref path) = field.file_path {
                     let file_bytes = tokio::fs::read(path)
                         .await
-                        .map_err(|e| format!("Failed to read file {path}: {e}"))?;
+                        .map_err(|e| AppError::Io(format!("Failed to read file {path}: {e}")))?;
                     let file_name = std::path::Path::new(path)
                         .file_name()
                         .map(|n| n.to_string_lossy().to_string())
@@ -216,32 +204,21 @@ pub async fn execute(
                     form = form.text(field.name.clone(), field.value.clone());
                 }
             }
-            // multipart sets its own Content-Type with boundary; don't set headers before
             request = request.multipart(form);
         }
         RequestBody::None => {}
     }
 
-    // For multipart, headers must be set AFTER .multipart() to avoid overwriting Content-Type
-    if !is_multipart {
-        request = request.headers(header_map);
-    } else {
-        // Add headers except Content-Type (multipart sets its own)
-        header_map.remove(reqwest::header::CONTENT_TYPE);
-        request = request.headers(header_map);
-    }
+    Ok((request, is_multipart))
+}
 
-    // Execute with timing
-    let start = Instant::now();
-    let response = request
-        .send()
-        .await
-        .map_err(|e| format!("Request failed: {e}"))?;
-    let elapsed = start.elapsed().as_secs_f64() * 1000.0;
-
+/// Read the response into a ResponseRecord, handling truncation for large bodies.
+async fn read_response(
+    response: reqwest::Response,
+    elapsed: f64,
+) -> Result<ResponseRecord, AppError> {
     let status_code = response.status().as_u16() as i32;
 
-    // Collect response headers
     let resp_headers: Vec<HeaderPair> = response
         .headers()
         .iter()
@@ -259,10 +236,7 @@ pub async fn execute(
         .to_string();
     let is_json = content_type.contains("json");
 
-    let body_bytes = response
-        .bytes()
-        .await
-        .map_err(|e| format!("Failed to read response body: {e}"))?;
+    let body_bytes = response.bytes().await?;
     let body_size = body_bytes.len();
 
     let (body_string, is_truncated) = if body_size > MAX_RESPONSE_BODY_BYTES {
@@ -283,6 +257,67 @@ pub async fn execute(
         is_truncated,
         content_type,
     })
+}
+
+/// Execute an HTTP request and return a ResponseRecord.
+/// Accepts a shared `reqwest::Client` (with cookie_store enabled) so that
+/// cookies persist across requests within the same session.
+#[allow(clippy::too_many_arguments)]
+pub async fn execute(
+    client: &reqwest::Client,
+    method: &HttpMethod,
+    url: &str,
+    headers: &[KeyValuePair],
+    query_params: &[KeyValuePair],
+    body: &RequestBody,
+    auth: &AuthConfig,
+    timeout_secs: Option<u64>,
+    follow_redirects: Option<bool>,
+    proxy_config: Option<&ProxyConfig>,
+) -> Result<ResponseRecord, AppError> {
+    let mut parsed_url = build_url(url, query_params)?;
+    let mut header_map = build_headers(headers);
+    apply_auth(auth, &mut header_map, &mut parsed_url);
+
+    let effective_client = build_client(client, follow_redirects, proxy_config)?;
+
+    let reqwest_method = match method {
+        HttpMethod::Get => reqwest::Method::GET,
+        HttpMethod::Post => reqwest::Method::POST,
+        HttpMethod::Put => reqwest::Method::PUT,
+        HttpMethod::Patch => reqwest::Method::PATCH,
+        HttpMethod::Delete => reqwest::Method::DELETE,
+        HttpMethod::Head => reqwest::Method::HEAD,
+        HttpMethod::Options => reqwest::Method::OPTIONS,
+    };
+
+    let request = effective_client
+        .request(reqwest_method, parsed_url)
+        .timeout(Duration::from_secs(
+            timeout_secs.unwrap_or(DEFAULT_TIMEOUT_SECS),
+        ));
+
+    let (request, is_multipart) = attach_body(request, body, &mut header_map).await?;
+
+    // For multipart, headers must be set AFTER .multipart() to avoid overwriting Content-Type
+    let request = if is_multipart {
+        header_map.remove(reqwest::header::CONTENT_TYPE);
+        request.headers(header_map)
+    } else {
+        request.headers(header_map)
+    };
+
+    let start = Instant::now();
+    tracing::debug!(?method, %url, "Sending HTTP request");
+    let response = request.send().await?;
+    let elapsed = start.elapsed().as_secs_f64() * 1000.0;
+    tracing::info!(
+        status = response.status().as_u16(),
+        elapsed_ms = format!("{elapsed:.1}"),
+        "HTTP response received"
+    );
+
+    read_response(response, elapsed).await
 }
 
 #[cfg(test)]
