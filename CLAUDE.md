@@ -331,30 +331,32 @@ Three version numbers must stay in sync, handled automatically by the **Bump Ver
 - File: `CHANGELOG.md`, following the [Keep a Changelog](https://keepachangelog.com/) format.
 - During development, all user-visible changes should be recorded in the `[Unreleased]` section.
 - Categories: `Added` (new features), `Changed` (behavior changes), `Fixed` (bug fixes), `Removed` (removals).
-- `bump.sh` automatically renames `[Unreleased]` to the version number + date, and creates a new empty `[Unreleased]` section.
+- The Bump workflow automatically renames `[Unreleased]` to the version number + date, and creates a new empty `[Unreleased]` section.
 
 ### Release Flow
 
 ```
-1. Ensure CHANGELOG.md [Unreleased] is fully populated
-2. Ensure all checks pass (merge PR to main)
+1. Ensure CHANGELOG.md [Unreleased] is fully populated (workflow will reject empty [Unreleased])
+2. Ensure all checks pass (merge PRs to main)
 3. Go to GitHub → Actions → "Bump Version" → Run workflow
 4. Enter version number (e.g. 0.8.0) and click "Run workflow"
 5. The action automatically:
    - Updates version in package.json, Cargo.toml, tauri.conf.json
    - Stamps CHANGELOG.md [Unreleased] → [version] - date
    - Commits + creates git tag + pushes to main
-   - Tag push triggers the Release workflow to build installers
+   - Triggers the Release workflow via workflow_dispatch to build installers
 6. Review and publish the Draft Release on GitHub
 ```
 
-**⚠️ Never run `bump.sh` locally and push to main.** All version bumps go through the GitHub Action to avoid direct pushes to main.
+**⚠️ Never manually edit version numbers or run `bump.sh` locally.** All version bumps go through the GitHub Action to avoid direct pushes to main.
+
+> **Note:** Tags pushed with the default `GITHUB_TOKEN` do not trigger other workflows (GitHub Actions limitation). The Bump workflow explicitly triggers the Release workflow via `gh workflow run` instead of relying on the tag push event.
 
 ### CI/CD Pipeline
 
 - **CI (`.github/workflows/ci.yml`)**: Runs automatically on PRs and pushes — fmt, clippy, cargo test, pnpm lint, pnpm test, pnpm check.
 - **Bump (`.github/workflows/bump.yml`)**: Manual dispatch — updates version numbers, stamps CHANGELOG, commits and tags on main.
-- **Release (`.github/workflows/release.yml`)**: Triggered automatically when pushing a `v*` tag — builds macOS (Intel + ARM) and Windows installers, creates a GitHub Draft Release.
+- **Release (`.github/workflows/release.yml`)**: Triggered by Bump workflow via `workflow_dispatch` (not tag push) — builds macOS (Intel + ARM) and Windows installers, creates a GitHub Draft Release.
 - Draft Releases must be manually reviewed and published on GitHub.
 
 ### Version Number Convention
