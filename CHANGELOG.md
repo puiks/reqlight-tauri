@@ -34,6 +34,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - OAuth2Editor using undefined `--accent` and `--fs-xsmall` tokens
 - LabeledField vertical alignment when hint text is present (flex-start + padding-top)
 
+## [0.7.1] - 2026-03-29
+
+### Changed
+
 - Release flow: version bumps now run via GitHub Actions (`bump.yml` workflow dispatch) instead of local `bump.sh` + direct push to main
 - `scripts/bump.sh` updated for cross-platform compatibility (macOS + Linux sed)
 
