@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Release flow: version bumps now run via GitHub Actions (`bump.yml` workflow dispatch) instead of local `bump.sh` + direct push to main
+- `scripts/bump.sh` updated for cross-platform compatibility (macOS + Linux sed)
+
 ## [0.7.0] - 2026-03-29
 
 ### Added

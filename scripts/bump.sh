@@ -44,21 +44,30 @@ fi
 
 echo "Bumping version to $VERSION..."
 
+# Cross-platform sed in-place (macOS uses -i '', GNU uses -i)
+sedi() {
+  if sed --version 2>/dev/null | grep -q GNU; then
+    sed -i "$@"
+  else
+    sed -i '' "$@"
+  fi
+}
+
 # 1. Update package.json
-sed -i '' "s/\"version\": \".*\"/\"version\": \"$VERSION\"/" "$ROOT/package.json"
+sedi "s/\"version\": \".*\"/\"version\": \"$VERSION\"/" "$ROOT/package.json"
 
 # 2. Update Cargo.toml (only the first version line under [package])
-sed -i '' "0,/^version = \".*\"/s//version = \"$VERSION\"/" "$ROOT/src-tauri/Cargo.toml"
+sedi "0,/^version = \".*\"/s//version = \"$VERSION\"/" "$ROOT/src-tauri/Cargo.toml"
 
 # 3. Update tauri.conf.json
-sed -i '' "s/\"version\": \".*\"/\"version\": \"$VERSION\"/" "$ROOT/src-tauri/tauri.conf.json"
+sedi "s/\"version\": \".*\"/\"version\": \"$VERSION\"/" "$ROOT/src-tauri/tauri.conf.json"
 
 # 4. Update Cargo.lock
 (cd "$ROOT/src-tauri" && cargo check --quiet 2>/dev/null || true)
 
 # 5. Stamp CHANGELOG.md: [Unreleased] → [version] - date, add new [Unreleased]
 TODAY="$(date +%Y-%m-%d)"
-sed -i '' "s/^## \[Unreleased\]/## [Unreleased]\n\n## [$VERSION] - $TODAY/" "$ROOT/CHANGELOG.md"
+sedi "s/^## \[Unreleased\]/## [Unreleased]\n\n## [$VERSION] - $TODAY/" "$ROOT/CHANGELOG.md"
 
 echo "Updated:"
 echo "  package.json        → $VERSION"

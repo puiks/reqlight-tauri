@@ -318,13 +318,13 @@ cargo fmt             # Format
 
 ### Version Number Management
 
-Three version numbers must stay in sync, handled automatically by `scripts/bump.sh`:
+Three version numbers must stay in sync, handled automatically by the **Bump Version** GitHub Action (`.github/workflows/bump.yml`):
 
 - `package.json` → `"version"`
 - `src-tauri/Cargo.toml` → `version`
 - `src-tauri/tauri.conf.json` → `"version"`
 
-**Never manually edit version numbers in these three files.**
+**Never manually edit version numbers in these three files.** The `scripts/bump.sh` script is available as a local fallback but the preferred method is the GitHub Action.
 
 ### CHANGELOG Convention
 
@@ -335,19 +335,25 @@ Three version numbers must stay in sync, handled automatically by `scripts/bump.
 
 ### Release Flow
 
-```bash
-# 1. Ensure CHANGELOG.md [Unreleased] is fully populated
-# 2. Ensure all checks pass (pre-commit checklist)
-# 3. Run version release (auto-updates version numbers + CHANGELOG + creates commit + tag)
-./scripts/bump.sh 0.X.0
-
-# 4. Push to remote to trigger CI/CD
-git push --follow-tags
 ```
+1. Ensure CHANGELOG.md [Unreleased] is fully populated
+2. Ensure all checks pass (merge PR to main)
+3. Go to GitHub → Actions → "Bump Version" → Run workflow
+4. Enter version number (e.g. 0.8.0) and click "Run workflow"
+5. The action automatically:
+   - Updates version in package.json, Cargo.toml, tauri.conf.json
+   - Stamps CHANGELOG.md [Unreleased] → [version] - date
+   - Commits + creates git tag + pushes to main
+   - Tag push triggers the Release workflow to build installers
+6. Review and publish the Draft Release on GitHub
+```
+
+**⚠️ Never run `bump.sh` locally and push to main.** All version bumps go through the GitHub Action to avoid direct pushes to main.
 
 ### CI/CD Pipeline
 
-- **CI (`.github/workflows/ci.yml`)**: Runs automatically on PRs and pushes — fmt, clippy, cargo test, vp lint, vp test, vp check, Playwright E2E.
+- **CI (`.github/workflows/ci.yml`)**: Runs automatically on PRs and pushes — fmt, clippy, cargo test, pnpm lint, pnpm test, pnpm check.
+- **Bump (`.github/workflows/bump.yml`)**: Manual dispatch — updates version numbers, stamps CHANGELOG, commits and tags on main.
 - **Release (`.github/workflows/release.yml`)**: Triggered automatically when pushing a `v*` tag — builds macOS (Intel + ARM) and Windows installers, creates a GitHub Draft Release.
 - Draft Releases must be manually reviewed and published on GitHub.
 
