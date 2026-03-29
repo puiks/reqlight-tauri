@@ -72,3 +72,8 @@ jobs:
           git commit -m "🔖 Bump version to ${{ inputs.version }}"
           git tag -a "v${{ inputs.version }}" -m "Release v${{ inputs.version }}"
           git push origin main --follow-tags
+
+      - name: Trigger release workflow
+        run: gh workflow run release.yml --ref "v${{ inputs.version }}"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
