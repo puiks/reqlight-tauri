@@ -34,10 +34,9 @@
   {:else if editorStore.response}
     <StatusBar response={editorStore.response} />
 
-    <div class="resp-tabs">
+    <div class="tab-bar">
       {#each tabs as tab}
         <button
-          class="tab"
           class:active={editorStore.activeResponseTab === tab.value}
           onclick={() => (editorStore.activeResponseTab = tab.value)}
         >
@@ -120,27 +119,6 @@
     align-items: center;
     justify-content: center;
     height: 100%;
-  }
-  .resp-tabs {
-    display: flex;
-    border-bottom: 1px solid var(--border-color);
-  }
-  .tab {
-    padding: var(--sp-sm) var(--sp-lg);
-    font-size: var(--fs-small);
-    font-weight: 500;
-    color: var(--text-secondary);
-    border-bottom: 2px solid transparent;
-    border-radius: 0;
-  }
-  .tab:hover {
-    color: var(--text-primary);
-    background: transparent;
-  }
-  .tab.active {
-    color: var(--color-info);
-    border-bottom-color: var(--color-info);
-    font-weight: 600;
   }
   .tab-actions {
     display: flex;

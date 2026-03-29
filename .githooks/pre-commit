@@ -1,4 +1,10 @@
 #!/bin/sh
 # Pre-commit hook: ensure code passes format and lint checks
 
+# Ensure correct Node version via fnm (required for .ts config loading)
+if command -v fnm >/dev/null 2>&1; then
+  eval "$(fnm env)"
+  fnm use --silent-if-unchanged
+fi
+
 npx vp check

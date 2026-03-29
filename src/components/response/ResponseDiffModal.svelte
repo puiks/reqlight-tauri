@@ -170,10 +170,10 @@
     line-height: 1.4;
   }
   .diff-line.removed {
-    background: rgba(239, 68, 68, 0.1);
+    background: var(--color-error-overlay);
   }
   .diff-line.added {
-    background: rgba(34, 197, 94, 0.1);
+    background: var(--color-success-overlay);
   }
   .line-num {
     width: 3em;

@@ -233,7 +233,7 @@
   }
   .truncation-warning {
     padding: var(--sp-xs) var(--sp-md);
-    background: rgba(245, 158, 11, 0.1);
+    background: var(--color-warning-overlay);
     color: var(--color-warning);
     font-size: var(--fs-caption);
     font-weight: 600;
@@ -243,7 +243,7 @@
     width: 100%;
     height: 100%;
     border: none;
-    background: white;
+    background: var(--bg-primary);
     border-radius: var(--radius-sm);
   }
   .image-preview {
@@ -270,11 +270,11 @@
     color: var(--text-secondary);
   }
   :global(.search-match) {
-    background: rgba(245, 158, 11, 0.3);
+    background: var(--color-warning-highlight);
     border-radius: 1px;
   }
   :global(.search-match.active) {
-    background: rgba(245, 158, 11, 0.7);
+    background: var(--color-warning-highlight-active);
     outline: 1px solid var(--color-warning);
   }
 </style>

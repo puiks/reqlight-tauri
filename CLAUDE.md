@@ -126,6 +126,25 @@ src-tauri/src/                # Rust Backend
 - Frontend: Use `vp fmt` (Oxfmt) for formatting and `vp lint` (Oxlint) for linting. Follow the project's existing Svelte 5 runes style (`$state`, `$derived`, `$effect`).
 - Types: TypeScript uses strict mode; Rust avoids `unwrap()` (except in test code).
 
+### CSS & Styling
+
+- **Design Token System**: All visual values (colors, spacing, typography, radii, shadows, line-height, transitions) are defined as CSS variables in `app.css`. **Never hard-code `rgba()`, hex colors, pixel values for spacing/font-size, or magic numbers** in component `<style>` blocks — always reference the corresponding `var(--token)`.
+- **Token categories** (defined in `:root` of `app.css`):
+  - Colors: `--color-method-*`, `--color-success/warning/error/info`, `--color-*-overlay` (10% opacity variants), `--color-warning-highlight*`
+  - Backgrounds: `--bg-primary/secondary/tertiary/hover/selected/input/editor`
+  - Text: `--text-primary/secondary/tertiary/inverse`
+  - Borders: `--border-color`, `--border-light`
+  - Spacing: `--sp-xs` (4px) through `--sp-xl` (20px)
+  - Typography: `--font-sans`, `--font-mono`, `--fs-caption` (10px) through `--fs-title2` (24px)
+  - Radius: `--radius-sm/md/lg`
+  - Line-height: `--lh-tight` (1.2), `--lh-normal` (1.5)
+  - Transitions: `--transition-fast` (0.1s)
+  - Shadows: `--shadow-modal/elevated/toast`
+- **Shared CSS patterns**: Reusable component patterns (e.g., `.tab-bar`) are defined globally in `app.css`. Before writing component-scoped styles for common UI patterns (tabs, toolbars, badges), check if a global pattern already exists. If two or more components share identical styling, extract it to `app.css` as a shared pattern.
+- **Dark mode**: Both light and dark themes are handled via CSS variables. Components must not use color values that only work in one theme. The `[data-theme='dark']` and `@media (prefers-color-scheme: dark)` selectors in `app.css` handle theming automatically — components just reference `var(--*)` tokens.
+- **Adding new tokens**: When a new visual value is needed, first check if an existing token fits. If not, add the new token to `app.css` `:root` with both light and dark variants, then reference it in the component.
+- **Scoped vs global styles**: Component-specific layout styles (flex, grid, dimensions) stay in `<style>` blocks. Visual properties (colors, spacing, typography) must use tokens. Syntax highlighting classes (`.json-key`, `.xml-tag`, etc.) are global in `app.css`.
+
 ### Commit Discipline
 
 - **Atomic commits.** Each commit should represent one logical change (one feature, one bug fix, one refactor). Do not bundle unrelated changes into a single commit.

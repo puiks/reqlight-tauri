@@ -51,15 +51,15 @@
   }
   .status-code.success {
     color: var(--color-success);
-    background: rgba(34, 197, 94, 0.1);
+    background: var(--color-success-overlay);
   }
   .status-code.error {
     color: var(--color-error);
-    background: rgba(239, 68, 68, 0.1);
+    background: var(--color-error-overlay);
   }
   .status-code.warning {
     color: var(--color-warning);
-    background: rgba(245, 158, 11, 0.1);
+    background: var(--color-warning-overlay);
   }
   .divider {
     color: var(--text-tertiary);
