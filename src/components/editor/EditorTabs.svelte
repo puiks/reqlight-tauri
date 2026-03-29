@@ -9,6 +9,7 @@
     { value: "body", label: "Body" },
     { value: "extract", label: "Extract" },
     { value: "assert", label: "Assert" },
+    { value: "script", label: "Script" },
   ];
 </script>
 

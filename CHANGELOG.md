@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- JavaScript scripting engine powered by QuickJS (rquickjs v0.11, ~1.5MB embedded)
+- Pre-request scripts: run JS before sending to set env vars, compute auth tokens, etc.
+- Test scripts: run JS after response to validate with `rl.test()` / `rl.expect()` assertions
+- `rl` global API: `rl.environment.get/set`, `rl.request`, `rl.response`, `rl.response.json()`
+- `rl.expect()` assertion chain: `toBe`, `toEqual`, `toContain`, `toBeDefined`, `toBeUndefined`, `toBeGreaterThan`, `toBeLessThan`, `toBeTruthy`
+- `crypto` global: `crypto.sha256()`, `crypto.md5()`, `crypto.hmacSHA256()`
+- `console.log()` with multi-type argument support (numbers, booleans, strings)
+- Script tab in request editor with dual-pane editor (pre-request + test)
+- Built-in dynamic variables: `$timestamp`, `$isoTimestamp`, `$guid`, `$randomInt`, `$randomEmail`, `$randomString`
+- Unresolved variable detection (`find_unmatched`) excluding dynamic variables
+- 5-second script execution timeout to prevent infinite loops
+- Collection runner: full scripting integration with env propagation across requests
+- Pre-request script errors abort the HTTP request instead of silently proceeding
+- Tauri IPC command `execute_script` for frontend–backend script execution
+- CI pre-verification workflow documented in CLAUDE.md (using `pnpm` scripts to match CI exactly)
+
 ## [0.6.0] - 2026-03-29
 
 ### Added

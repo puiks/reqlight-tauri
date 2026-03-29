@@ -14,4 +14,6 @@ pub mod keychain;
 pub mod oauth;
 pub mod openapi_import;
 pub mod persistence;
+pub mod scripting;
+pub(crate) mod scripting_runtime;
 pub mod websocket;

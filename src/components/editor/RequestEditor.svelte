@@ -7,6 +7,7 @@
   import AuthEditor from "./AuthEditor.svelte";
   import ExtractionEditor from "./ExtractionEditor.svelte";
   import AssertionEditor from "./AssertionEditor.svelte";
+  import ScriptEditor from "./ScriptEditor.svelte";
   import WebSocketPanel from "./WebSocketPanel.svelte";
   import EmptyState from "../shared/EmptyState.svelte";
 
@@ -67,6 +68,8 @@
         <ExtractionEditor />
       {:else if editorStore.activeEditorTab === "assert"}
         <AssertionEditor />
+      {:else if editorStore.activeEditorTab === "script"}
+        <ScriptEditor />
       {/if}
     </div>
   {:else}

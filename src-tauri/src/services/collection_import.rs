@@ -86,6 +86,8 @@ fn convert_request(name: &str, req: &PostmanRequest, sort_order: i32) -> SavedRe
         response_extractions: vec![],
         assertions: vec![],
         timeout_secs: None,
+        pre_request_script: None,
+        test_script: None,
     }
 }
 

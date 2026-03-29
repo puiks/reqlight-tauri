@@ -9,7 +9,8 @@ mod test_utils;
 use std::sync::Arc;
 
 use commands::{
-    codegen, collection_io, curl, har, http, keychain, oauth, openapi, persistence, websocket,
+    codegen, collection_io, curl, har, http, keychain, oauth, openapi, persistence, scripting,
+    websocket,
 };
 use services::websocket::WsManager;
 use tokio::sync::Notify;
@@ -93,6 +94,8 @@ pub fn run() {
             openapi::import_openapi,
             // HAR Import
             har::import_har,
+            // Scripting
+            scripting::execute_script,
             // OAuth
             oauth::oauth_client_credentials,
             oauth::oauth_authorization_code,
