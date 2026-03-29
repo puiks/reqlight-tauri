@@ -19,6 +19,8 @@ fn base_request() -> SavedRequest {
         response_extractions: vec![],
         assertions: vec![],
         timeout_secs: None,
+        pre_request_script: None,
+        test_script: None,
     }
 }
 

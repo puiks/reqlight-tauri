@@ -31,6 +31,8 @@ pub fn interpolate(input: &str, variables: &[KeyValuePair]) -> String {
                     let var_name = &input[var_start..j];
                     if let Some(&value) = lookup.get(var_name) {
                         result.push_str(value);
+                    } else if let Some(dynamic) = resolve_dynamic_variable(var_name) {
+                        result.push_str(&dynamic);
                     } else {
                         result.push_str("{{");
                         result.push_str(var_name);
@@ -176,6 +178,42 @@ pub fn interpolate_auth(auth: &AuthConfig, variables: &[KeyValuePair]) -> AuthCo
     }
 }
 
+/// Check if a variable name is a built-in dynamic variable (starts with `$`).
+fn is_dynamic_variable(name: &str) -> bool {
+    matches!(
+        name,
+        "$timestamp" | "$isoTimestamp" | "$randomInt" | "$guid" | "$randomEmail" | "$randomString"
+    )
+}
+
+/// Resolve a built-in dynamic variable by name.
+fn resolve_dynamic_variable(name: &str) -> Option<String> {
+    match name {
+        "$timestamp" => Some(chrono::Utc::now().timestamp().to_string()),
+        "$isoTimestamp" => Some(chrono::Utc::now().to_rfc3339()),
+        "$randomInt" => {
+            let bytes = uuid::Uuid::new_v4();
+            let n = u32::from_le_bytes([
+                bytes.as_bytes()[0],
+                bytes.as_bytes()[1],
+                bytes.as_bytes()[2],
+                bytes.as_bytes()[3],
+            ]) % 10000;
+            Some(n.to_string())
+        }
+        "$guid" => Some(uuid::Uuid::new_v4().to_string()),
+        "$randomEmail" => {
+            let id = &uuid::Uuid::new_v4().to_string()[..8];
+            Some(format!("user-{id}@test.example.com"))
+        }
+        "$randomString" => {
+            let id = &uuid::Uuid::new_v4().to_string().replace('-', "")[..12];
+            Some(id.to_string())
+        }
+        _ => None,
+    }
+}
+
 /// Find variable names referenced in `input` that don't exist in `variables`.
 pub fn find_unmatched(input: &str, variables: &[KeyValuePair]) -> Vec<String> {
     if !input.contains("{{") {
@@ -200,7 +238,10 @@ pub fn find_unmatched(input: &str, variables: &[KeyValuePair]) -> Vec<String> {
             while j + 1 < len {
                 if bytes[j] == b'}' && bytes[j + 1] == b'}' {
                     let var_name = &input[var_start..j];
-                    if !lookup.contains(var_name) && !unmatched.contains(&var_name.to_string()) {
+                    if !lookup.contains(var_name)
+                        && !is_dynamic_variable(var_name)
+                        && !unmatched.contains(&var_name.to_string())
+                    {
                         unmatched.push(var_name.to_string());
                     }
                     i = j + 2;

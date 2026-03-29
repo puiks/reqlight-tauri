@@ -105,6 +105,8 @@ export interface SavedRequest {
   responseExtractions?: ExtractionRule[]
   assertions?: AssertionRule[]
   timeoutSecs?: number
+  preRequestScript?: string
+  testScript?: string
 }
 
 export interface RequestCollection {
@@ -170,7 +172,7 @@ export interface AppState {
 
 export type CodegenLanguage = 'javascript-fetch' | 'javascript-axios' | 'python-requests' | 'curl'
 
-export type EditorTab = 'params' | 'headers' | 'auth' | 'body' | 'extract' | 'assert'
+export type EditorTab = 'params' | 'headers' | 'auth' | 'body' | 'extract' | 'assert' | 'script'
 export type ResponseTab = 'body' | 'headers'
 
 export const HTTP_METHODS: HttpMethod[] = [
@@ -208,6 +210,12 @@ export interface CollectionRunResult {
   responseBody?: string | null
   /** Variable names referenced in request but missing from environment */
   unmatchedVariables?: string[]
+  /** Script test results from test scripts */
+  scriptTestResults?: { name: string; passed: boolean; message: string | null }[]
+  /** Console output from scripts */
+  scriptConsoleOutput?: string[]
+  /** Script execution error */
+  scriptError?: string
 }
 
 export type CollectionRunStatus = 'idle' | 'running' | 'stopped' | 'completed'

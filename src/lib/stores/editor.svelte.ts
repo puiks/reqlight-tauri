@@ -1,4 +1,5 @@
-import { cancelRequest, sendRequest } from '../commands'
+import { cancelRequest, executeScript, sendRequest } from '../commands'
+import type { ScriptResult } from '../commands'
 import { DEFAULT_REQUEST_TIMEOUT } from '../constants'
 import {
   buildAuthConfig,
@@ -53,6 +54,8 @@ class EditorStore {
   graphqlVariables = $state('')
   extractionRules = $state<ExtractionRule[]>([createEmptyExtractionRule()])
   assertionRules = $state<AssertionRule[]>([createEmptyAssertionRule()])
+  preRequestScript = $state('')
+  testScript = $state('')
 
   // Auth fields
   authType = $state<AuthType>('none')
@@ -84,6 +87,7 @@ class EditorStore {
   followRedirects = $state(true)
   protocolMode = $state<'http' | 'ws'>('http')
   variableWarning = $state<string | null>(null)
+  scriptResult = $state<ScriptResult | null>(null)
 
   get isUrlValid(): boolean {
     const u = this.url.trim()
@@ -128,6 +132,8 @@ class EditorStore {
     this.assertionRules = request.assertions?.length
       ? [...request.assertions]
       : [createEmptyAssertionRule()]
+    this.preRequestScript = request.preRequestScript ?? ''
+    this.testScript = request.testScript ?? ''
     this.applyAuthFields(parseAuthConfig(request.auth))
     this.timeoutSecs = request.timeoutSecs ?? DEFAULT_REQUEST_TIMEOUT
     this.response = null
@@ -190,6 +196,8 @@ class EditorStore {
       responseExtractions: this.extractionRules.filter((r) => r.variableName || r.jsonPath),
       assertions: this.assertionRules.filter(isAssertionComplete),
       timeoutSecs: this.timeoutSecs !== DEFAULT_REQUEST_TIMEOUT ? this.timeoutSecs : undefined,
+      preRequestScript: this.preRequestScript || undefined,
+      testScript: this.testScript || undefined,
     }
   }
 
@@ -211,6 +219,7 @@ class EditorStore {
     this.isLoading = true
     this.errorMessage = null
     this.response = null
+    this.scriptResult = null
 
     // Warn about unmatched variables before sending
     const saved = this.toSavedRequest()
@@ -225,6 +234,15 @@ class EditorStore {
     }
 
     try {
+      // Run pre-request script if present
+      if (this.preRequestScript) {
+        await this.runScript(this.preRequestScript, 'pre-request')
+        if (this.scriptResult?.error) {
+          this.errorMessage = `Pre-request script error: ${this.scriptResult.error}`
+          return
+        }
+      }
+
       const result = await sendRequest({
         method: this.method,
         url: this.url,
@@ -240,6 +258,11 @@ class EditorStore {
       this.response = result
       this.applyExtractions(result)
 
+      // Run test script if present
+      if (this.testScript) {
+        await this.runScript(this.testScript, 'test', result)
+      }
+
       historyStore.addEntry({
         method: this.method,
         url: this.url,
@@ -253,6 +276,45 @@ class EditorStore {
       this.errorMessage = e instanceof Error ? e.message : String(e)
     } finally {
       this.isLoading = false
+    }
+  }
+
+  private async runScript(
+    script: string,
+    type: 'pre-request' | 'test',
+    response?: import('../types').ResponseRecord,
+  ) {
+    const envVars: Record<string, string> = {}
+    for (const v of environmentStore.activeEnvironment?.variables ?? []) {
+      if (v.isEnabled && v.key) envVars[v.key] = v.value
+    }
+    const scriptReq = {
+      method: this.method,
+      url: this.url,
+      headers: Object.fromEntries(this.headers.filter((h) => h.key).map((h) => [h.key, h.value])),
+      body: this.jsonBody || this.rawBody || '',
+    }
+    const scriptResp = response
+      ? {
+          status: response.statusCode,
+          headers: Object.fromEntries(
+            (response.headers ?? []).map((h) => [h.key.toLowerCase(), h.value]),
+          ),
+          body: response.bodyString ?? '',
+          time: response.elapsedTime,
+        }
+      : undefined
+    const result = await executeScript({
+      script,
+      scriptType: type,
+      envVars,
+      request: scriptReq,
+      response: scriptResp,
+    })
+    this.scriptResult = result
+    // Apply env updates from script
+    for (const [key, value] of result.envUpdates) {
+      environmentStore.setVariable(key, value)
     }
   }
 
@@ -287,6 +349,8 @@ class EditorStore {
     this.graphqlVariables = ''
     this.extractionRules = [createEmptyExtractionRule()]
     this.assertionRules = [createEmptyAssertionRule()]
+    this.preRequestScript = ''
+    this.testScript = ''
     this.applyAuthFields(parseAuthConfig(undefined))
     this.response = null
     this.errorMessage = null
@@ -309,11 +373,14 @@ class EditorStore {
     this.graphqlVariables = ''
     this.extractionRules = [createEmptyExtractionRule()]
     this.assertionRules = [createEmptyAssertionRule()]
+    this.preRequestScript = ''
+    this.testScript = ''
     this.applyAuthFields(parseAuthConfig(undefined))
     this.response = null
     this.pinnedResponse = null
     this.errorMessage = null
     this.variableWarning = null
+    this.scriptResult = null
     this.isDirty = false
   }
 

@@ -179,6 +179,28 @@ vp check                     # svelte-check + TypeScript zero errors
 - **Frontend commands use `npx vp <subcommand>`.** If `npx vp` is unavailable, fall back to `PATH="$PWD/node_modules/.bin:$PATH" vp <subcommand>`.
 - Performance test thresholds must account for CI environments (2-3x slower than local). For known-slow operations, use `{ timeout: 30000 }` with relaxed thresholds.
 
+### CI Pre-Verification (Must Run Before PR)
+
+> **Before creating a PR or committing to a feature branch, run the full CI simulation locally.** This avoids wasted CI minutes and blocked PRs.
+
+```bash
+# Full local CI simulation (mirrors .github/workflows/ci.yml)
+# 1. Rust checks (from src-tauri/)
+cd src-tauri && cargo fmt --check && cargo clippy -- -D warnings && cargo test && cd ..
+
+# 2. Frontend checks (requires Node 22 via fnm)
+eval "$(fnm env)" && fnm use 22
+npx vp fmt           # Auto-format (CI runs lint which catches format issues)
+npx vp lint          # Must be zero warnings AND zero errors
+npx vp test run      # All tests passing
+npx vp check         # svelte-check + TypeScript — zero errors
+```
+
+- **When Claude Code completes a feature implementation, it MUST run this full CI simulation before reporting completion.** Do not rely on the user to catch CI failures.
+- **If any check fails, fix it autonomously** before reporting back. Only escalate to the user if genuinely blocked.
+- **CI runs on both macOS and Windows for Rust.** Avoid platform-specific code paths unless gated behind `#[cfg(target_os)]`.
+- **CI uses `pnpm install --frozen-lockfile`.** If you modify dependencies, ensure `pnpm-lock.yaml` is updated.
+
 ### Modal & Callback Threading Pattern
 
 - **Modal state is managed centrally in `App.svelte`.** Each modal has a corresponding `showXxx = $state(false)` and `<XxxModal onclose={...} />`.
@@ -256,6 +278,15 @@ vp check                     # svelte-check + TypeScript zero errors
 
 - **Use `is_some_and(|x| ...)` instead of `map_or(false, |x| ...)`.** The clippy `unnecessary_map_or` lint will error.
 - **Use `is_none_or(|x| ...)` instead of `map_or(true, |x| ...)`.** Same reasoning.
+
+### Scripting Engine (QuickJS via rquickjs)
+
+- **`rquickjs` types have invariant lifetimes.** All `register_*` functions that accept `Object<'js>` or `Ctx<'js>` must use explicit lifetime annotations: `fn register_foo<'js>(ctx: &rquickjs::Ctx<'js>, obj: &Object<'js>)`.
+- **JS eval must happen AFTER `rl` is on globals.** Functions like `rl.expect = ...` and `rl.response.json = ...` reference `rl` by name in JS. They must be injected after `globals.set("rl", rl)`, not before.
+- **Never use `.expect()` or `.unwrap()` inside rquickjs closures.** Panics in QuickJS callbacks cause undefined behavior. Return error strings or use `match`.
+- **`console.log` must coerce non-string types.** rquickjs closures with `String` parameters silently fail on numbers/booleans. Use a JS wrapper that calls `String()` on arguments.
+- **5-second execution timeout** is enforced via `rt.set_interrupt_handler()`. This prevents infinite loops from hanging the app.
+- **Pre-request script errors must abort the HTTP request.** Don't silently proceed — the script may have been setting required auth tokens.
 
 ## Build & Check Commands
 

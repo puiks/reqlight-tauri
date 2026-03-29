@@ -141,6 +141,10 @@ pub struct SavedRequest {
     pub assertions: Vec<super::assertion::AssertionRule>,
     #[serde(default)]
     pub timeout_secs: Option<u64>,
+    #[serde(default)]
+    pub pre_request_script: Option<String>,
+    #[serde(default)]
+    pub test_script: Option<String>,
 }
 
 fn default_request_name() -> String {
@@ -168,6 +172,8 @@ impl Default for SavedRequest {
             response_extractions: vec![],
             assertions: vec![],
             timeout_secs: None,
+            pre_request_script: None,
+            test_script: None,
         }
     }
 }

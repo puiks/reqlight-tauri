@@ -1,4 +1,5 @@
-import { sendRequest } from '../commands'
+import { executeScript, sendRequest } from '../commands'
+import type { ScriptTestResult } from '../commands'
 import type {
   CollectionRunResult,
   CollectionRunStatus,
@@ -59,6 +60,15 @@ class RunnerStore {
     this.status = 'completed'
   }
 
+  private buildEnvRecord(): Record<string, string> {
+    const vars = environmentStore.activeEnvironment?.variables ?? []
+    const record: Record<string, string> = {}
+    for (const v of vars) {
+      if (v.isEnabled && v.key) record[v.key] = v.value
+    }
+    return record
+  }
+
   private async executeRequest(request: SavedRequest): Promise<CollectionRunResult> {
     // Detect unmatched variables before sending
     const envVars = environmentStore.activeEnvironment?.variables ?? []
@@ -73,6 +83,51 @@ class RunnerStore {
       method: request.method,
       url: request.url,
       unmatchedVariables: unmatchedVariables.length > 0 ? unmatchedVariables : undefined,
+    }
+
+    const scriptReq = {
+      method: request.method,
+      url: request.url,
+      headers: Object.fromEntries(
+        request.headers.filter((h) => h.key).map((h) => [h.key, h.value]),
+      ),
+      body: typeof request.body === 'string' ? request.body : '',
+    }
+    const envRecord = this.buildEnvRecord()
+    const allConsole: string[] = []
+    const allTestResults: ScriptTestResult[] = []
+    let scriptError: string | undefined
+
+    // Run pre-request script
+    if (request.preRequestScript) {
+      try {
+        const result = await executeScript({
+          script: request.preRequestScript,
+          scriptType: 'pre-request',
+          envVars: envRecord,
+          request: scriptReq,
+        })
+        allConsole.push(...result.consoleOutput)
+        if (result.error) scriptError = result.error
+        // Apply env updates
+        for (const [key, value] of result.envUpdates) {
+          envRecord[key] = value
+          environmentStore.setVariable(key, value)
+        }
+      } catch (e) {
+        scriptError = e instanceof Error ? e.message : String(e)
+      }
+      // Abort request if pre-request script had errors
+      if (scriptError) {
+        return {
+          ...base,
+          statusCode: null,
+          elapsedTime: null,
+          passed: false,
+          scriptError,
+          scriptConsoleOutput: allConsole.length > 0 ? allConsole : undefined,
+        }
+      }
     }
 
     try {
@@ -91,15 +146,45 @@ class RunnerStore {
       // Apply extractions
       applyExtractionRules(request.responseExtractions ?? [], response)
 
+      // Run test script
+      if (request.testScript) {
+        try {
+          const result = await executeScript({
+            script: request.testScript,
+            scriptType: 'test',
+            envVars: envRecord,
+            request: scriptReq,
+            response: {
+              status: response.statusCode,
+              headers: Object.fromEntries(
+                (response.headers ?? []).map((h) => [h.key.toLowerCase(), h.value]),
+              ),
+              body: response.bodyString ?? '',
+              time: response.elapsedTime,
+            },
+          })
+          allConsole.push(...result.consoleOutput)
+          allTestResults.push(...result.testResults)
+          if (result.error) scriptError = result.error
+          for (const [key, value] of result.envUpdates) {
+            environmentStore.setVariable(key, value)
+          }
+        } catch (e) {
+          scriptError = e instanceof Error ? e.message : String(e)
+        }
+      }
+
       // Evaluate assertions
       const assertions = request.assertions?.filter((a) => a.isEnabled) ?? []
       const assertionResults =
         assertions.length > 0 ? evaluateAssertions(assertions, response) : undefined
 
-      // Pass/fail: if assertions exist, all must pass; otherwise fall back to 2xx check
-      const passed = assertionResults
+      // Pass/fail: assertions + script tests must all pass; otherwise fall back to 2xx check
+      const assertionsPassed = assertionResults
         ? assertionResults.every((r) => r.passed)
         : response.statusCode >= 200 && response.statusCode < 300
+      const scriptTestsPassed = allTestResults.every((r) => r.passed)
+      const passed = assertionsPassed && scriptTestsPassed && !scriptError
 
       // Store truncated body for debugging (first 2KB)
       const responseBody = response.bodyString ? response.bodyString.slice(0, 2048) : null
@@ -111,6 +196,9 @@ class RunnerStore {
         passed,
         assertionResults,
         responseBody,
+        scriptTestResults: allTestResults.length > 0 ? allTestResults : undefined,
+        scriptConsoleOutput: allConsole.length > 0 ? allConsole : undefined,
+        scriptError,
       }
     } catch (e) {
       return {
@@ -119,6 +207,8 @@ class RunnerStore {
         elapsedTime: null,
         passed: false,
         errorMessage: e instanceof Error ? e.message : String(e),
+        scriptConsoleOutput: allConsole.length > 0 ? allConsole : undefined,
+        scriptError,
       }
     }
   }

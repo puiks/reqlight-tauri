@@ -7,4 +7,5 @@ pub mod keychain;
 pub mod oauth;
 pub mod openapi;
 pub mod persistence;
+pub mod scripting;
 pub mod websocket;

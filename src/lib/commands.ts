@@ -178,6 +178,44 @@ export async function oauthRefreshToken(
   return invoke('oauth_refresh_token', { tokenUrl, refreshToken, clientId, clientSecret })
 }
 
+// Scripting
+export interface ScriptRequestData {
+  method: string
+  url: string
+  headers: Record<string, string>
+  body: string
+}
+
+export interface ScriptResponseData {
+  status: number
+  headers: Record<string, string>
+  body: string
+  time: number
+}
+
+export interface ScriptTestResult {
+  name: string
+  passed: boolean
+  message: string | null
+}
+
+export interface ScriptResult {
+  envUpdates: [string, string][]
+  testResults: ScriptTestResult[]
+  consoleOutput: string[]
+  error: string | null
+}
+
+export async function executeScript(params: {
+  script: string
+  scriptType: 'pre-request' | 'test'
+  envVars: Record<string, string>
+  request: ScriptRequestData
+  response?: ScriptResponseData
+}): Promise<ScriptResult> {
+  return invoke<ScriptResult>('execute_script', params)
+}
+
 // WebSocket
 export async function wsConnect(
   connectionId: string,

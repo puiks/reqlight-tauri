@@ -32,6 +32,9 @@ pub enum AppError {
     #[error("WebSocket error: {0}")]
     WebSocket(String),
 
+    #[error("Script error: {0}")]
+    Script(String),
+
     #[error("{0}")]
     Other(String),
 }
