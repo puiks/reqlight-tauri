@@ -262,6 +262,163 @@ fn oauth2_secrets_not_written_to_json_file() {
 }
 
 #[test]
+fn sanitize_secrets_strips_bearer_token() {
+    use crate::models::auth::AuthConfig;
+    use crate::models::collection::RequestCollection;
+    use crate::models::request::SavedRequest;
+
+    let mut state = AppState::default();
+    let mut request = SavedRequest::default();
+    request.auth = AuthConfig::BearerToken {
+        token: "my-bearer-secret".to_string(),
+    };
+    state.collections.push(RequestCollection {
+        id: uuid::Uuid::new_v4(),
+        name: "Test".to_string(),
+        requests: vec![request],
+        sort_order: 0,
+        created_at: "2026-01-01T00:00:00Z".to_string(),
+    });
+
+    let (sanitized, secrets) = sanitize_secrets(&state);
+
+    if let AuthConfig::BearerToken { token } = &sanitized.collections[0].requests[0].auth {
+        assert_eq!(token, "");
+    } else {
+        panic!("Expected BearerToken auth config");
+    }
+    assert_eq!(secrets.len(), 1);
+    assert_eq!(secrets[0].1, "my-bearer-secret");
+}
+
+#[test]
+fn sanitize_secrets_strips_basic_auth_password() {
+    use crate::models::auth::AuthConfig;
+    use crate::models::collection::RequestCollection;
+    use crate::models::request::SavedRequest;
+
+    let mut state = AppState::default();
+    let mut request = SavedRequest::default();
+    request.auth = AuthConfig::BasicAuth {
+        username: "admin".to_string(),
+        password: "secret-pass".to_string(),
+    };
+    state.collections.push(RequestCollection {
+        id: uuid::Uuid::new_v4(),
+        name: "Test".to_string(),
+        requests: vec![request],
+        sort_order: 0,
+        created_at: "2026-01-01T00:00:00Z".to_string(),
+    });
+
+    let (sanitized, secrets) = sanitize_secrets(&state);
+
+    if let AuthConfig::BasicAuth { username, password } = &sanitized.collections[0].requests[0].auth
+    {
+        assert_eq!(username, "admin", "username should be preserved");
+        assert_eq!(password, "", "password should be stripped");
+    } else {
+        panic!("Expected BasicAuth auth config");
+    }
+    assert_eq!(secrets.len(), 1);
+    assert_eq!(secrets[0].1, "secret-pass");
+}
+
+#[test]
+fn sanitize_secrets_strips_api_key_value() {
+    use crate::models::auth::AuthConfig;
+    use crate::models::collection::RequestCollection;
+    use crate::models::request::SavedRequest;
+
+    let mut state = AppState::default();
+    let mut request = SavedRequest::default();
+    request.auth = AuthConfig::ApiKey {
+        key: "X-Api-Key".to_string(),
+        value: "secret-api-key-123".to_string(),
+        location: crate::models::ApiKeyLocation::Header,
+    };
+    state.collections.push(RequestCollection {
+        id: uuid::Uuid::new_v4(),
+        name: "Test".to_string(),
+        requests: vec![request],
+        sort_order: 0,
+        created_at: "2026-01-01T00:00:00Z".to_string(),
+    });
+
+    let (sanitized, secrets) = sanitize_secrets(&state);
+
+    if let AuthConfig::ApiKey { key, value, .. } = &sanitized.collections[0].requests[0].auth {
+        assert_eq!(key, "X-Api-Key", "key name should be preserved");
+        assert_eq!(value, "", "value should be stripped");
+    } else {
+        panic!("Expected ApiKey auth config");
+    }
+    assert_eq!(secrets.len(), 1);
+    assert_eq!(secrets[0].1, "secret-api-key-123");
+}
+
+#[test]
+fn auth_secrets_not_written_to_json_file() {
+    use crate::models::auth::AuthConfig;
+    use crate::models::collection::RequestCollection;
+    use crate::models::request::SavedRequest;
+
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("data.json");
+
+    let mut state = AppState::default();
+
+    let mut req1 = SavedRequest::default();
+    req1.name = "bearer".to_string();
+    req1.auth = AuthConfig::BearerToken {
+        token: "bearer-secret-tok".to_string(),
+    };
+
+    let mut req2 = SavedRequest::default();
+    req2.name = "basic".to_string();
+    req2.auth = AuthConfig::BasicAuth {
+        username: "user".to_string(),
+        password: "basic-secret-pass".to_string(),
+    };
+
+    let mut req3 = SavedRequest::default();
+    req3.name = "apikey".to_string();
+    req3.auth = AuthConfig::ApiKey {
+        key: "X-Key".to_string(),
+        value: "apikey-secret-val".to_string(),
+        location: crate::models::ApiKeyLocation::Header,
+    };
+
+    state.collections.push(RequestCollection {
+        id: uuid::Uuid::new_v4(),
+        name: "Test".to_string(),
+        requests: vec![req1, req2, req3],
+        sort_order: 0,
+        created_at: "2026-01-01T00:00:00Z".to_string(),
+    });
+
+    let (sanitized, _) = sanitize_secrets(&state);
+    save_state_to_path(&path, &sanitized).unwrap();
+
+    let raw_json = fs::read_to_string(&path).unwrap();
+    assert!(
+        !raw_json.contains("bearer-secret-tok"),
+        "bearer token leaked"
+    );
+    assert!(
+        !raw_json.contains("basic-secret-pass"),
+        "basic password leaked"
+    );
+    assert!(
+        !raw_json.contains("apikey-secret-val"),
+        "api key value leaked"
+    );
+    // Non-secret fields preserved
+    assert!(raw_json.contains("user"));
+    assert!(raw_json.contains("X-Key"));
+}
+
+#[test]
 fn load_from_invalid_json_returns_error() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("data.json");

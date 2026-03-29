@@ -109,6 +109,9 @@ fn build_client<'a>(
         builder = builder.redirect(reqwest::redirect::Policy::none());
     }
     if let Some(proxy) = proxy_config.filter(|p| p.enabled && !p.proxy_url.is_empty()) {
+        if proxy.proxy_url.starts_with("http://") {
+            tracing::warn!("Proxy uses unencrypted HTTP — credentials and request metadata may be visible to network observers");
+        }
         let mut p = reqwest::Proxy::all(&proxy.proxy_url)
             .map_err(|e| AppError::Network(format!("Invalid proxy URL: {e}")))?;
         if !proxy.no_proxy.is_empty() {
@@ -308,7 +311,9 @@ pub async fn execute(
     };
 
     let start = Instant::now();
-    tracing::debug!(?method, %url, "Sending HTTP request");
+    // Log URL without query string to avoid leaking API keys in query params
+    let log_url = url.split('?').next().unwrap_or(url);
+    tracing::debug!(?method, url = log_url, "Sending HTTP request");
     let response = request.send().await?;
     let elapsed = start.elapsed().as_secs_f64() * 1000.0;
     tracing::info!(

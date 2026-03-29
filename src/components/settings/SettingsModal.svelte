@@ -70,7 +70,10 @@
         <LabeledField
           label="Proxy URL"
           bind:value={appStore.proxyConfig.proxyUrl}
-          placeholder="http://proxy:8080"
+          placeholder="https://proxy:8080"
+          hint={appStore.proxyConfig.enabled && appStore.proxyConfig.proxyUrl.startsWith("http://")
+            ? "Warning: HTTP proxy is unencrypted. Use HTTPS for sensitive traffic."
+            : ""}
           disabled={!appStore.proxyConfig.enabled}
           oninput={() => appStore.scheduleSave()}
         />

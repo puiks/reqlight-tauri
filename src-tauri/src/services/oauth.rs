@@ -2,6 +2,10 @@ use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
 
+/// Maximum length for error response bodies included in error messages.
+/// Prevents leaking excessive server-side details.
+const MAX_ERROR_BODY_LEN: usize = 256;
+
 /// OAuth2 token response from the token endpoint.
 #[derive(Debug, Clone, Deserialize)]
 pub struct TokenResponse {
@@ -75,10 +79,14 @@ pub async fn client_credentials_exchange(
 
     if !resp.status().is_success() {
         let status = resp.status();
-        let body = resp.text().await.unwrap_or_else(|e| {
+        let mut body = resp.text().await.unwrap_or_else(|e| {
             tracing::warn!("Failed to read token error response body: {e}");
             format!("<failed to read body: {e}>")
         });
+        if body.len() > MAX_ERROR_BODY_LEN {
+            body.truncate(MAX_ERROR_BODY_LEN);
+            body.push_str("...(truncated)");
+        }
         return Err(format!("Token endpoint returned {status}: {body}"));
     }
 
@@ -119,10 +127,14 @@ pub async fn authorization_code_exchange(
 
     if !resp.status().is_success() {
         let status = resp.status();
-        let body = resp.text().await.unwrap_or_else(|e| {
+        let mut body = resp.text().await.unwrap_or_else(|e| {
             tracing::warn!("Failed to read token error response body: {e}");
             format!("<failed to read body: {e}>")
         });
+        if body.len() > MAX_ERROR_BODY_LEN {
+            body.truncate(MAX_ERROR_BODY_LEN);
+            body.push_str("...(truncated)");
+        }
         return Err(format!("Token endpoint returned {status}: {body}"));
     }
 
@@ -156,10 +168,14 @@ pub async fn refresh_token_exchange(
 
     if !resp.status().is_success() {
         let status = resp.status();
-        let body = resp.text().await.unwrap_or_else(|e| {
-            eprintln!("Warning: failed to read token refresh error response body: {e}");
+        let mut body = resp.text().await.unwrap_or_else(|e| {
+            tracing::warn!("Failed to read token refresh error response body: {e}");
             format!("<failed to read body: {e}>")
         });
+        if body.len() > MAX_ERROR_BODY_LEN {
+            body.truncate(MAX_ERROR_BODY_LEN);
+            body.push_str("...(truncated)");
+        }
         return Err(format!("Token refresh error {status}: {body}"));
     }
 

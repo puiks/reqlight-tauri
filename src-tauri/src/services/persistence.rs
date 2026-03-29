@@ -32,11 +32,11 @@ fn keychain_key(env_id: &uuid::Uuid, var_id: &uuid::Uuid) -> String {
     )
 }
 
-/// Keychain key for OAuth2 secrets on a specific request.
-/// Format: "oauth_{collectionId}_{requestId}_{field}"
-fn oauth_keychain_key(collection_id: &uuid::Uuid, request_id: &uuid::Uuid, field: &str) -> String {
+/// Keychain key for auth secrets on a specific request.
+/// Format: "auth_{collectionId}_{requestId}_{field}"
+fn auth_keychain_key(collection_id: &uuid::Uuid, request_id: &uuid::Uuid, field: &str) -> String {
     format!(
-        "oauth_{}_{}_{}",
+        "auth_{}_{}_{}",
         collection_id.to_string().to_uppercase(),
         request_id.to_string().to_uppercase(),
         field,
@@ -71,33 +71,52 @@ fn sanitize_secrets(state: &AppState) -> (AppState, Vec<(String, String)>) {
         }
     }
 
-    // Strip OAuth2 tokens from request auth configs
+    // Strip auth secrets from request auth configs
     for collection in &mut sanitized.collections {
+        let cid = collection.id;
         for request in &mut collection.requests {
-            if let AuthConfig::OAuth2 {
-                ref mut access_token,
-                ref mut refresh_token,
-                ref mut client_secret,
-                ..
-            } = request.auth
-            {
-                let cid = &collection.id;
-                let rid = &request.id;
-                if !access_token.is_empty() {
-                    let key = oauth_keychain_key(cid, rid, "access_token");
-                    secrets.push((key, access_token.clone()));
-                    *access_token = String::new();
+            let rid = request.id;
+            match &mut request.auth {
+                AuthConfig::BearerToken { ref mut token } if !token.is_empty() => {
+                    let key = auth_keychain_key(&cid, &rid, "bearer_token");
+                    secrets.push((key, token.clone()));
+                    *token = String::new();
                 }
-                if !refresh_token.is_empty() {
-                    let key = oauth_keychain_key(cid, rid, "refresh_token");
-                    secrets.push((key, refresh_token.clone()));
-                    *refresh_token = String::new();
+                AuthConfig::BasicAuth {
+                    ref mut password, ..
+                } if !password.is_empty() => {
+                    let key = auth_keychain_key(&cid, &rid, "basic_password");
+                    secrets.push((key, password.clone()));
+                    *password = String::new();
                 }
-                if !client_secret.is_empty() {
-                    let key = oauth_keychain_key(cid, rid, "client_secret");
-                    secrets.push((key, client_secret.clone()));
-                    *client_secret = String::new();
+                AuthConfig::ApiKey { ref mut value, .. } if !value.is_empty() => {
+                    let key = auth_keychain_key(&cid, &rid, "apikey_value");
+                    secrets.push((key, value.clone()));
+                    *value = String::new();
                 }
+                AuthConfig::OAuth2 {
+                    ref mut access_token,
+                    ref mut refresh_token,
+                    ref mut client_secret,
+                    ..
+                } => {
+                    if !access_token.is_empty() {
+                        let key = auth_keychain_key(&cid, &rid, "access_token");
+                        secrets.push((key, access_token.clone()));
+                        *access_token = String::new();
+                    }
+                    if !refresh_token.is_empty() {
+                        let key = auth_keychain_key(&cid, &rid, "refresh_token");
+                        secrets.push((key, refresh_token.clone()));
+                        *refresh_token = String::new();
+                    }
+                    if !client_secret.is_empty() {
+                        let key = auth_keychain_key(&cid, &rid, "client_secret");
+                        secrets.push((key, client_secret.clone()));
+                        *client_secret = String::new();
+                    }
+                }
+                _ => {}
             }
         }
     }
@@ -130,29 +149,58 @@ pub fn load_state(app: &tauri::AppHandle) -> Result<AppState, String> {
         }
     }
 
-    // Restore OAuth2 tokens from keychain
+    // Restore auth secrets from keychain
     for collection in &mut state.collections {
+        let cid = collection.id;
         for request in &mut collection.requests {
-            if let AuthConfig::OAuth2 {
-                ref mut access_token,
-                ref mut refresh_token,
-                ref mut client_secret,
-                ..
-            } = request.auth
-            {
-                let cid = &collection.id;
-                let rid = &request.id;
-                if let Ok(Some(v)) = keychain::load(&oauth_keychain_key(cid, rid, "access_token")) {
-                    *access_token = v;
+            let rid = request.id;
+            match &mut request.auth {
+                AuthConfig::BearerToken { ref mut token } => {
+                    if let Ok(Some(v)) =
+                        keychain::load(&auth_keychain_key(&cid, &rid, "bearer_token"))
+                    {
+                        *token = v;
+                    }
                 }
-                if let Ok(Some(v)) = keychain::load(&oauth_keychain_key(cid, rid, "refresh_token"))
-                {
-                    *refresh_token = v;
+                AuthConfig::BasicAuth {
+                    ref mut password, ..
+                } => {
+                    if let Ok(Some(v)) =
+                        keychain::load(&auth_keychain_key(&cid, &rid, "basic_password"))
+                    {
+                        *password = v;
+                    }
                 }
-                if let Ok(Some(v)) = keychain::load(&oauth_keychain_key(cid, rid, "client_secret"))
-                {
-                    *client_secret = v;
+                AuthConfig::ApiKey { ref mut value, .. } => {
+                    if let Ok(Some(v)) =
+                        keychain::load(&auth_keychain_key(&cid, &rid, "apikey_value"))
+                    {
+                        *value = v;
+                    }
                 }
+                AuthConfig::OAuth2 {
+                    ref mut access_token,
+                    ref mut refresh_token,
+                    ref mut client_secret,
+                    ..
+                } => {
+                    if let Ok(Some(v)) =
+                        keychain::load(&auth_keychain_key(&cid, &rid, "access_token"))
+                    {
+                        *access_token = v;
+                    }
+                    if let Ok(Some(v)) =
+                        keychain::load(&auth_keychain_key(&cid, &rid, "refresh_token"))
+                    {
+                        *refresh_token = v;
+                    }
+                    if let Ok(Some(v)) =
+                        keychain::load(&auth_keychain_key(&cid, &rid, "client_secret"))
+                    {
+                        *client_secret = v;
+                    }
+                }
+                _ => {}
             }
         }
     }

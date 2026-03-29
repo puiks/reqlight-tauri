@@ -35,6 +35,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - ErrorFallback component using undefined CSS token names
 - OAuth2Editor using undefined `--accent` and `--fs-xsmall` tokens
 - LabeledField vertical alignment when hint text is present (flex-start + padding-top)
+- Window drag ACL error when clicking toolbar area (`core:window:allow-start-dragging` permission added)
+- Bearer token, Basic Auth password, and API Key value now stored in OS keychain instead of plaintext JSON
+- HTTP request debug logs no longer include URL query parameters (prevents API key leakage in logs)
+- OAuth error responses truncated to 256 chars to prevent sensitive server details from leaking
+- HTTP proxy warning shown in Settings when using unencrypted HTTP proxy
 
 ## [0.7.1] - 2026-03-29
 
