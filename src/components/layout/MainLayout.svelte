@@ -35,18 +35,25 @@
     e.preventDefault();
   }
 
+  let rafPending = false;
   function handleMouseMove(e: MouseEvent) {
-    if (isDraggingSidebar) {
-      const newWidth = Math.max(200, Math.min(320, e.clientX));
-      sidebarWidth = newWidth;
-    }
-    if (isDraggingSplit && containerEl) {
-      const rect = containerEl.getBoundingClientRect();
-      const sidebarOffset = appStore.sidebarVisible ? sidebarWidth + 4 : 0;
-      const availableWidth = rect.width - sidebarOffset;
-      const relX = e.clientX - rect.left - sidebarOffset;
-      editorRatio = Math.max(0.25, Math.min(0.75, relX / availableWidth));
-    }
+    if (!isDraggingSidebar && !isDraggingSplit) return;
+    if (rafPending) return;
+    rafPending = true;
+    const clientX = e.clientX;
+    requestAnimationFrame(() => {
+      rafPending = false;
+      if (isDraggingSidebar) {
+        sidebarWidth = Math.max(200, Math.min(320, clientX));
+      }
+      if (isDraggingSplit && containerEl) {
+        const rect = containerEl.getBoundingClientRect();
+        const sidebarOffset = appStore.sidebarVisible ? sidebarWidth + 4 : 0;
+        const availableWidth = rect.width - sidebarOffset;
+        const relX = clientX - rect.left - sidebarOffset;
+        editorRatio = Math.max(0.25, Math.min(0.75, relX / availableWidth));
+      }
+    });
   }
 
   function handleMouseUp() {

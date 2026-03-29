@@ -244,7 +244,7 @@ async fn read_response(
         let s = String::from_utf8_lossy(truncated).into_owned();
         (Some(s), true)
     } else {
-        (String::from_utf8(body_bytes.to_vec()).ok(), false)
+        (String::from_utf8(body_bytes.into()).ok(), false)
     };
 
     Ok(ResponseRecord {

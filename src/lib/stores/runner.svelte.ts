@@ -50,7 +50,7 @@ class RunnerStore {
       this.currentIndex = i
       const request = collection.requests[i]
       const result = await this.executeRequest(request)
-      this.results = [...this.results, result]
+      this.results.push(result)
     }
 
     this.currentIndex = this.totalRequests

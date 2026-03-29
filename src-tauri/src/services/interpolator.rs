@@ -16,24 +16,24 @@ pub fn interpolate(input: &str, variables: &[KeyValuePair]) -> String {
         .collect();
 
     let mut result = String::with_capacity(input.len());
-    let chars: Vec<char> = input.chars().collect();
-    let len = chars.len();
+    let bytes = input.as_bytes();
+    let len = bytes.len();
     let mut i = 0;
 
     while i < len {
-        if i + 1 < len && chars[i] == '{' && chars[i + 1] == '{' {
+        if i + 1 < len && bytes[i] == b'{' && bytes[i + 1] == b'{' {
             // Found "{{", look for "}}"
             let var_start = i + 2;
             let mut found_end = false;
             let mut j = var_start;
             while j + 1 < len {
-                if chars[j] == '}' && chars[j + 1] == '}' {
-                    let var_name: String = chars[var_start..j].iter().collect();
-                    if let Some(&value) = lookup.get(var_name.as_str()) {
+                if bytes[j] == b'}' && bytes[j + 1] == b'}' {
+                    let var_name = &input[var_start..j];
+                    if let Some(&value) = lookup.get(var_name) {
                         result.push_str(value);
                     } else {
                         result.push_str("{{");
-                        result.push_str(&var_name);
+                        result.push_str(var_name);
                         result.push_str("}}");
                     }
                     i = j + 2;
@@ -43,12 +43,17 @@ pub fn interpolate(input: &str, variables: &[KeyValuePair]) -> String {
                 j += 1;
             }
             if !found_end {
-                result.push(chars[i]);
+                // Safe: '{' is ASCII, so input[i..i+1] is valid UTF-8
+                result.push('{');
                 i += 1;
             }
         } else {
-            result.push(chars[i]);
-            i += 1;
+            // Find the next '{' or end to batch-copy non-variable text
+            let start = i;
+            while i < len && !(i + 1 < len && bytes[i] == b'{' && bytes[i + 1] == b'{') {
+                i += 1;
+            }
+            result.push_str(&input[start..i]);
         }
     }
 

@@ -39,7 +39,7 @@ class AppStore {
     return this.collections.find((c) => c.id === this.selectedCollectionId)
   }
 
-  get filteredCollections(): RequestCollection[] {
+  readonly filteredCollections = $derived.by<RequestCollection[]>(() => {
     if (!this.searchQuery.trim()) return this.collections
     const q = this.searchQuery.toLowerCase()
     return this.collections
@@ -55,7 +55,7 @@ class AppStore {
         }
       })
       .filter((c) => c.name.toLowerCase().includes(q) || c.requests.length > 0)
-  }
+  })
 
   // Load
   async load() {
